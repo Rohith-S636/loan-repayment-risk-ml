@@ -9,6 +9,14 @@ venv/
 dist/
 build/
 .DS_Store
-# Dataset files — do not commit
+
+# Local Home Credit datasets — never commit
 data/raw/*.csv
 data/processed/*.csv
+
+# Generated ML artifacts
+models/*.joblib
+models/*.pkl
+results/metrics/*.csv
+results/predictions/*.csv
+results/figures/*.png

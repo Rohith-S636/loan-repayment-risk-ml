@@ -1,41 +1,37 @@
 # AGENTS.md
 
-> Instructions for AI coding agents working in this repo. Read this before starting any slice.
+## Project
+Loan Repayment Risk Prediction Using Machine Learning.
 
-## What this project is
-[One-line description]. Full context lives in `docs/PRD.md` and `docs/ARCHITECTURE.md` — read those first if you're unfamiliar with the project.
+Read `docs/PRD.md` and `docs/ARCHITECTURE.md` before implementation.
 
-## How work is structured
-Work is broken into **slices** (`docs/slices/`), grouped into **sprints** (`docs/sprints/`). Each slice has:
-- A module it belongs to (see `docs/ARCHITECTURE.md`)
-- Acceptance criteria written as testable statements — treat these as the test plan
-- An "out of scope" note, if present — do not build beyond it
+## Hard scope
+The project has a two-day deadline. Keep work focused on the complete ML pipeline:
+seven-table aggregation, compact financial/repayment features, leakage-safe preprocessing, Logistic Regression, Random Forest, XGBoost/fallback, imbalance handling, evaluation, threshold analysis, feature importance, and a lightweight demo.
 
-**Only work on the slice you've been given.** Do not expand scope, add "nice to have" extras, or refactor unrelated code unless explicitly asked.
+Do not add K-means, PCA/t-SNE, deep learning, complex frontend, cloud deployment, or exhaustive tuning unless explicitly requested.
 
-## Commit / PR convention
-Reference the slice ID in your commit messages and PR title, e.g. `slice-03-user-auth: add login endpoint`. This keeps code traceable back to its spec.
+## Data rules
+- Raw CSVs stay local under `data/raw/` and must remain ignored by Git.
+- Process large tables in chunks where practical.
+- Final modeling data has one row per `SK_ID_CURR`.
+- Never use `TARGET` to construct predictor features.
+- Verify actual CSV columns before writing feature formulas.
 
-## Human review required — do not merge/deploy without it
-- Authentication / authorization changes
-- Payments
-- Data deletion or destructive migrations
-- Infra / CI-CD configuration changes
-- Anything touching secrets or environment variables
+## Experiment rules
+- Fixed random seed.
+- Stratified train/validation/test split.
+- Fit learned preprocessing on training data only.
+- Tune thresholds on validation data only.
+- Use the test set only for final evaluation.
+- Do not claim a model is better before the experiment shows it.
 
-For everything else, proceed and open a PR as normal.
+## Slice workflow
+Work only on the active slice. Acceptance criteria are the test contract.
+Use the slice ID in commits/PRs, e.g. `feat(slice-05): train baseline models`.
 
-## Secrets & environment
-Never read, log, or commit actual secret values. Reference `.env.example` for the list of expected variables — ask the human to provide actual values if needed.
+## Secrets
+Never commit or expose secrets. There are no required secrets for the core ML pipeline.
 
-## Testing
-Acceptance criteria in the slice doc are the test contract. Write tests that verify those criteria, not just tests that pass against your own implementation.
-
-## If something is ambiguous
-Stop and ask, rather than guessing. If the slice, architecture, or PRD doesn't answer your question, flag it — don't assume.
-
-## CI / Docker / release pipelines
-Not present by default. Only set these up if explicitly asked — don't add CI workflows, a Dockerfile, or a release pipeline as a side effect of another task.
-
-## Decisions log
-If you make a non-obvious architectural choice while executing a slice, note it in `docs/decisions/ADR-00X-<short-name>.md` (short — a few lines is enough). Not every choice needs one — only ones that would be genuinely confusing to revisit later without the reasoning.
+## Decisions
+Record non-obvious methodological decisions in `docs/decisions/ADR-001-project-decisions.md`.

@@ -1,57 +1,75 @@
-# Architecture — [Project Name]
-
-> Descriptive, not persuasive. State what we're using and how it's shaped — save the "why" for an ADR, and only write one if the choice is genuinely non-obvious.
+# Architecture — Loan Repayment Risk Prediction
 
 ## Stack
-List it plainly — no justification needed.
-
-- Frontend: ...
-- Backend: ...
-- Database: ...
-- Hosting: ...
-- Other services (auth, storage, email, etc.): ...
+- Python
+- pandas / NumPy
+- scikit-learn / XGBoost
+- Matplotlib / Seaborn
+- Streamlit
+- joblib
+- Local Home Credit CSV files
 
 ## System flow
-One diagram, kept small (5–10 boxes max). Skip this entirely if the system is simple enough to describe in a few sentences instead.
-
 ```mermaid
 flowchart LR
-    Client --> API
-    API --> DB[(Database)]
-    API --> ExternalService[Third-party service]
+ A[Seven raw CSV tables] --> B[Validation]
+ B --> C[Applicant-level aggregation]
+ C --> D[Feature engineering]
+ D --> E[Train / validation / test]
+ E --> F[Leakage-safe preprocessing]
+ F --> G[Model comparison]
+ G --> H[Threshold analysis]
+ H --> I[Final evaluation]
+ I --> J[Explainability + demo]
 ```
 
 ## Modules
-Split by **domain/responsibility**, not by technical layer. Ask: "if two people/agent sessions worked on two different modules at once, would they step on each other?" If yes, that's not a clean split.
+- `data_loader` — locate/read local source tables.
+- `aggregation` — reduce historical tables to `SK_ID_CURR` aggregates; chunk large files.
+- `feature_engineering` — financial ratios and compact repayment features.
+- `preprocessing` — imputation, encoding, and scaling where required.
+- `train` — train candidate models and persist the selected pipeline.
+- `evaluate` — metrics, curves, confusion matrix, threshold analysis.
+- `app` — lightweight Streamlit demo.
 
-- `auth` — ...
-- `[feature]` — ...
-- `[feature]` — ...
+## Relationships
+```text
+application_train
+  └── SK_ID_CURR
+       ├── bureau
+       │    └── bureau_balance via SK_ID_BUREAU
+       └── previous_application
+            ├── POS_CASH_balance via SK_ID_PREV
+            ├── installments_payments via SK_ID_PREV
+            └── credit_card_balance via SK_ID_PREV
+```
 
-This split is a starting point, not a contract — it's allowed to evolve. If it changes in a non-obvious way later, that's an ADR.
+The final modeling table has one row per `SK_ID_CURR`.
 
-## API contract (if frontend/backend are separate)
-Minimal — enough for both sides to build independently without drifting. If this list grows past ~10-15 endpoints, split it into `docs/api-contract.md` and link it here instead.
+## Feature groups
+- Application: selected current variables and valid ratios such as credit/income and annuity/income.
+- Bureau: account, active/overdue, credit/debt/overdue, and compact bureau-balance history aggregates.
+- Previous applications: count, approval/refusal, historical credit/application amounts.
+- POS/CASH: history and DPD statistics.
+- Installments: payment/installment ratios, late counts/ratios, payment delays.
+- Credit card: history, balance/limit, and delinquency statistics.
 
-| Method | Path | Request | Response |
-|---|---|---|---|
-| GET | /api/... | — | `{ ... }` |
-| POST | /api/... | `{ ... }` | `{ ... }` |
+Exact formulas must follow the actual CSV schema.
 
-## Data model (optional)
-Only include if there are non-obvious relationships. A short list of entities and how they relate is enough — no formal ER diagram needed unless the schema is genuinely complex.
+## Models
+1. Logistic Regression — baseline.
+2. Random Forest — nonlinear tree baseline.
+3. XGBoost — boosting candidate.
+4. HistGradientBoostingClassifier — fallback if XGBoost is unavailable/impractical.
 
-- `User` — has many `[X]`
-- `[Entity]` — belongs to `[Y]`
+Class weighting is the default imbalance strategy.
+
+## Evaluation
+ROC-AUC, PR-AUC, precision, recall, F1, and confusion matrix. Threshold selection uses validation data only; final test evaluation happens after the threshold is frozen.
 
 ## Constraints
-Keep this to 3–5 bullets. These are the things an agent would otherwise silently guess wrong.
-
-- Expected scale: ...
-- Performance: ...
-- Security musts: ...
-- Anything explicitly NOT needed (e.g. "no need to support offline mode")
-
----
-
-**Exit check:** Could a coding agent read this and know which module a new slice belongs in, without asking you?
+- Raw data outside Git.
+- Avoid loading all large tables simultaneously.
+- No target leakage.
+- Fixed random seed.
+- Two-day deadline is a hard scope constraint.

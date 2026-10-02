@@ -1,42 +1,66 @@
-# ship-kit
+# Loan Repayment Risk Prediction Using Machine Learning
 
-A starting point for AI-assisted builds: structure the thinking (research → PRD → architecture → sprints → slices) so a coding agent can execute cleanly, instead of improvising from a single chat.
+**Working title:** Loan Repayment Risk Prediction Using Machine Learning: An Imbalance-Aware and Interpretable Approach
 
-As AI coding agents handle more of the actual implementation, the human's job shifts upstream — to defining requirements and architecture precisely enough that an agent can build the right thing without guessing. `ship-kit` is a lightweight set of doc templates and a `CLAUDE.md`/`AGENTS.md` for exactly that: minimal structure, no heavy process, designed to stay out of your way until you actually need it.
+A two-day ML mini-project for predicting loan repayment difficulty using the Home Credit multi-table dataset.
 
-## Use this template
-Click **"Use this template"** above to create a new repo with this structure already in place. Rename it, then start at Phase 0 below.
+## Objective
+Build a reproducible applicant-level pipeline combining current application data with historical credit and repayment behavior, handling class imbalance, comparing ML models, optimizing the decision threshold on validation data, and producing an interpretable demo.
 
-## What's inside
+## In scope
+- All seven Home Credit source tables.
+- Applicant-level historical aggregation.
+- Compact financial and repayment features.
+- Stratified train/validation/test split.
+- Leakage-safe preprocessing.
+- Logistic Regression, Random Forest, XGBoost (HistGradientBoosting fallback).
+- Class weighting as the default imbalance strategy.
+- ROC-AUC, PR-AUC, precision, recall, F1, confusion matrix.
+- Validation-based threshold analysis.
+- Permutation feature importance.
+- Lightweight Streamlit demo.
+- Two-page report and presentation.
 
+## Out of scope
+K-means, PCA/t-SNE, polynomial expansion, deep learning, exhaustive tuning, cloud deployment, complex frontend, and SMOTE unless time permits.
+
+## Dataset
+| Dataset | Rows | Columns |
+|---|---:|---:|
+| application_train.csv | 307,511 | 122 |
+| bureau.csv | 1,716,428 | 17 |
+| bureau_balance.csv | 27,299,925 | 3 |
+| previous_application.csv | 1,670,214 | 37 |
+| POS_CASH_balance.csv | 10,001,358 | 8 |
+| installments_payments.csv | 13,605,401 | 8 |
+| credit_card_balance.csv | 3,840,312 | 23 |
+
+The raw CSVs are approximately 2.3 GB and are **not committed to GitHub**. Place them in `data/raw/`.
+
+## Pipeline
+```text
+7 raw tables → validation → applicant-level aggregation
+→ financial/repayment features → train/validation/test
+→ leakage-safe preprocessing → 3 model comparison
+→ imbalance evaluation → threshold analysis
+→ final test evaluation → feature importance → demo
 ```
-/docs
-  research.md          → problem framing, who has it, what exists
-  PRD.md                → goal, users, features, explicitly out of scope
-  ARCHITECTURE.md       → stack, system flow, modules, API contract, constraints
-  /decisions
-    ADR-001-xxx.md       → only when a choice is non-obvious (opportunistic, not mandatory)
-  /sprints
-    sprint-01.md
-  /slices
-    slice-01-xxx.md
-CLAUDE.md / AGENTS.md    → house rules for coding agents working in this repo
-.env.example
+
+## Local setup
+```bash
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# Linux/macOS: source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-## Workflow (short version)
+## Reproducibility rules
+- Fixed random seed.
+- One modeling row per `SK_ID_CURR`.
+- Never use `TARGET` to construct predictors.
+- Fit learned preprocessing on training data only.
+- Select the classification threshold on validation data only.
+- Keep the test set untouched until final evaluation.
+- Record actual experimental results; do not predeclare a winning model.
 
-1. **Research** — talk it through with web AI, write `docs/research.md`
-2. **PRD** — lock goal/users/features/out-of-scope before moving on
-3. **Architecture** — stack, flow, modules, constraints; ADR only if genuinely non-obvious
-4. **Sprints** — break architecture into feature-level chunks (`docs/sprints/`)
-5. **Slices** — break each sprint into agent-session-sized units with testable acceptance criteria (`docs/slices/`)
-6. **Execute** — hand a slice to a coding agent, it opens a PR referencing the slice ID, human review required for auth/payments/data-deletion/infra/secrets, merge, deploy
-
-A matching Notion page template mirrors this `/docs` structure for commenting and status-tracking — the repo is the canonical source, Notion is the visible/collaborative mirror.
-
-## Not included by default
-CI, Docker, and release pipelines are intentionally left out — add them only when a project's actual pain calls for it, by asking the coding agent to set it up. See `CLAUDE.md` / `AGENTS.md`.
-
-## License
-MIT — see `LICENSE`.
+See `docs/` for the project specification, architecture, two-day sprints, and implementation slices.
