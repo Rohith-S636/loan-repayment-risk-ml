@@ -1,25 +1,29 @@
-# Research — [Project Name]
+# Research — Loan Repayment Risk Prediction
 
-> Informal. This doc exists to force clarity before you write the PRD. No fixed structure required — but these questions should be answerable by the end.
+## Problem
+Predict whether a loan applicant is likely to experience repayment difficulty using current application information and historical credit/repayment behavior.
 
-## The problem
-What's broken/missing/annoying right now? Who feels this pain, and how often?
+## Reference context
+The reference study uses seven Home Credit source tables and explores multiple preprocessing, classifiers, imbalance methods, and exploratory analyses. This project uses the same problem/data family but intentionally narrows the implementation for a two-day deadline.
 
-## Who has this problem
-Be specific — not "everyone," a real user type. If you can name 1–2 real people/roles who'd want this, do that.
+## Our focus
+1. Applicant-level aggregation of historical records.
+2. Domain-driven financial and repayment features.
+3. Leakage-safe preprocessing.
+4. Imbalance-aware model comparison.
+5. Validation-based threshold analysis.
+6. Interpretable feature importance.
+7. A small working prediction demo.
 
-## Why now / why you
-Anything that makes this the right time or the right team to build it (optional — skip if not relevant).
+## Research questions
+- How strong is Logistic Regression as a baseline?
+- Do nonlinear tree models improve predictive performance?
+- How does class weighting affect minority-class detection?
+- Does validation threshold selection change the precision/recall trade-off?
+- Which engineered financial and repayment features are most important?
 
-## What exists already
-Competitors, existing tools, workarounds people currently use. What do they get wrong or leave out?
+## Dataset
+The seven local source tables are application_train, bureau, bureau_balance, previous_application, POS_CASH_balance, installments_payments, and credit_card_balance. The inspected raw collection is approximately 2.3 GB.
 
-## Rough shape of the solution
-2–3 sentences, no architecture yet — just "what would fix this."
-
-## Open questions
-Anything still fuzzy that the PRD stage needs to resolve.
-
----
-
-**Exit check:** Can you state the problem in 2–3 sentences? If not, keep talking to web AI before starting the PRD.
+## Constraint
+Only two days are available. Optional clustering, PCA/t-SNE, deep learning, polynomial expansion, exhaustive tuning, and cloud deployment are deferred.

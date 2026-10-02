@@ -1,16 +1,24 @@
-# Sprint [0X] — [Short name]
-
-> A sprint is a feature-level chunk of the Architecture — sized to however much you'll realistically tackle in one work block (a few hours, an all-nighter, a weekend). Not tied to a calendar week.
+# Sprint 01 — Data and Working Models
 
 ## Goal
-What does the project look like at the end of this sprint that it doesn't right now?
+By the end of Day 1, the project has a reproducible applicant-level dataset and working candidate models with recorded metrics.
 
-## Slices in this sprint
-- [ ] `slice-0X-name` — one line description
-- [ ] `slice-0X-name` — one line description
+## Timebox
+Day 1.
+
+## Slices
+- [ ] `slice-01-data-validation` — validate the seven local datasets and keys.
+- [ ] `slice-02-historical-aggregation` — aggregate historical tables to applicant level.
+- [ ] `slice-03-feature-engineering` — create compact financial/repayment features.
+- [ ] `slice-04-preprocessing` — split data and build leakage-safe preprocessing.
+- [ ] `slice-05-model-training` — train Logistic Regression, Random Forest, XGBoost/fallback.
+- [ ] `slice-06-imbalance-evaluation` — apply weighting and record metrics.
 
 ## Depends on
-Anything that must exist before this sprint can start (previous sprint, an external API key, a decision still open). Leave blank if none.
+Local copies of all seven Home Credit CSV files.
 
-## Notes for next time
-*(Leave blank unless something actually broke, a slice was mis-sized, or the agent went off-script. No entry needed if things went fine — this isn't a mandatory retro.)*
+## Exit criteria
+- Applicant-level modeling table exists locally.
+- Raw and processed datasets remain untracked.
+- At least two models run; target is three.
+- Core evaluation metrics are recorded.
