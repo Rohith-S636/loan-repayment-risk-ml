@@ -19,7 +19,7 @@ Build a reproducible applicant-level pipeline combining current application data
 - ROC-AUC, PR-AUC, precision, recall, F1, confusion matrix.
 - Validation-based model and threshold selection.
 - Permutation feature importance.
-- Lightweight Streamlit demo.
+- Polished Streamlit demo using the frozen final pipeline.
 - Two-page report and presentation.
 
 ## Out of scope
@@ -45,16 +45,58 @@ The raw CSVs are approximately 2.3 GB and are **not committed to GitHub**. Place
 → leakage-safe preprocessing → baseline model comparison
 → controlled XGBoost tuning → validation model selection
 → threshold analysis → frozen final evaluation
-→ feature importance → Streamlit demo
+→ permutation importance → Streamlit demo
 ```
 
-## Model-selection protocol
-The initial Slice 05 baseline selected XGBoost on validation performance:
-- Baseline validation ROC-AUC: **0.772189**
-- Baseline validation PR-AUC: **0.259062**
-- Baseline validation F1 at 0.50: **0.291262**
+## Final accepted model
+Controlled tuning selected **XGBoost tuned** using validation PR-AUC.
 
-A controlled XGBoost tuning experiment is implemented separately in Slice 06A. It uses the fixed Slice 04 train/validation split, selects by validation PR-AUC, and never uses the test set. The tuned model is accepted only if the validation improvement is meaningful. If accepted, threshold selection and final test evaluation are rerun with the tuned model.
+Validation tuning:
+- Baseline PR-AUC: **0.259062**
+- Tuned PR-AUC: **0.261614**
+- Baseline ROC-AUC: **0.772189**
+- Tuned ROC-AUC: **0.774488**
+- Tuned validation F1 at 0.50: **0.305564**
+
+Slice 07 selected a frozen threshold of **0.58** using validation data only.
+
+Final untouched test evaluation:
+- ROC-AUC: **0.778114**
+- PR-AUC: **0.273767**
+- Precision: **0.256052**
+- Recall: **0.472910**
+- F1: **0.332225**
+
+The final prediction pipeline uses:
+- `models/xgboost_tuned.joblib`
+- `models/preprocessor.joblib`
+- `models/threshold.json`
+
+## Model-selection protocol
+The initial Slice 05 baseline selected XGBoost on validation performance. Slice 06A then performed a controlled 20-trial XGBoost tuning experiment using the fixed Slice 04 train/validation split. Selection used validation PR-AUC, with ROC-AUC and F1 tie-breakers. The test set was never used during tuning.
+
+Slice 07 selected the operating threshold on validation data by maximizing F1. Slice 08 evaluated the frozen model and threshold exactly once on the untouched test split.
+
+## Demo
+Generate validation-only permutation importance:
+
+```powershell
+python src\explainability.py
+```
+
+Launch the polished Streamlit demo:
+
+```powershell
+streamlit run app\app.py
+```
+
+The demo provides:
+1. **Risk Predictor** — reproducible validation applicant and controlled scenario explorer.
+2. **Model Performance** — final test metrics, confusion matrix, ROC and PR curves.
+3. **Why This Prediction?** — validation-only permutation feature importance.
+4. **Threshold & Selection** — model comparison and the rationale for threshold 0.58.
+
+The UI never trains, tunes, or evaluates the test set.
 
 ## Reproducibility rules
 - Fixed random seed: 42.
@@ -82,6 +124,6 @@ Run after the baseline pipeline is available:
 python src/tune_xgboost.py
 ```
 
-The experiment writes trial results under `results/tuning/` and saves the candidate model as `models/xgboost_tuned.joblib`. Do not replace the baseline model until the validation comparison is reviewed.
+The experiment writes trial results under `results/tuning/` and saves the candidate model as `models/xgboost_tuned.joblib`.
 
 See `docs/` for the project specification, architecture, research decisions, sprints, and implementation slices.
