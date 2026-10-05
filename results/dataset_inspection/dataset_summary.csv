@@ -1,8 +1,8 @@
-dataset,file_size,rows,columns,numeric_columns,categorical_columns,identifier_columns
-application_train.csv,158.44 MB,307511,122,106,16,SK_ID_CURR
-bureau.csv,162.14 MB,1716428,17,14,3,"SK_ID_CURR, SK_ID_BUREAU"
-bureau_balance.csv,358.19 MB,27299925,3,2,1,SK_ID_BUREAU
-previous_application.csv,386.21 MB,1670214,37,21,16,"SK_ID_PREV, SK_ID_CURR"
-POS_CASH_balance.csv,374.51 MB,10001358,8,7,1,"SK_ID_PREV, SK_ID_CURR"
-installments_payments.csv,689.62 MB,13605401,8,8,0,"SK_ID_PREV, SK_ID_CURR"
-credit_card_balance.csv,404.91 MB,3840312,23,22,1,"SK_ID_PREV, SK_ID_CURR"
+dataset,file,rows,columns,numeric_columns,categorical_columns,missing_cells,required_columns_valid,duplicate_key_status
+application_train,application_train.csv,307511,122,106,16,9152465,True,PASS
+bureau,bureau.csv,1716428,17,14,3,3939947,True,PASS
+bureau_balance,bureau_balance.csv,27299925,3,2,1,0,True,NOT_APPLICABLE
+previous_application,previous_application.csv,1670214,37,21,16,11109336,True,PASS
+POS_CASH_balance,POS_CASH_balance.csv,10001358,8,7,1,52158,True,NOT_APPLICABLE
+installments_payments,installments_payments.csv,13605401,8,8,0,5810,True,NOT_APPLICABLE
+credit_card_balance,credit_card_balance.csv,3840312,23,22,1,5877356,True,NOT_APPLICABLE

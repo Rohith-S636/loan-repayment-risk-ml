@@ -1,4 +1,4 @@
-column,missing_count,missing_percentage
-SK_ID_BUREAU,0,0.0
-MONTHS_BALANCE,0,0.0
-STATUS,0,0.0
+column,missing_count,missing_percentage,dtype
+SK_ID_BUREAU,0,0.0,int64
+MONTHS_BALANCE,0,0.0,int64
+STATUS,0,0.0,object

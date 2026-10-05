@@ -1,0 +1,7 @@
+parent,parent_key,child,child_key,child_rows_checked,unmatched_rows,unmatched_percentage,status
+application_train,SK_ID_CURR,bureau,SK_ID_CURR,1716428,251103,14.6294,WARNING
+bureau,SK_ID_BUREAU,bureau_balance,SK_ID_BUREAU,27299925,3120184,11.4293,WARNING
+application_train,SK_ID_CURR,previous_application,SK_ID_CURR,1670214,256513,15.3581,WARNING
+previous_application,SK_ID_PREV,POS_CASH_balance,SK_ID_PREV,10001358,340561,3.4051,WARNING
+previous_application,SK_ID_PREV,installments_payments,SK_ID_PREV,13605401,1250826,9.1936,WARNING
+previous_application,SK_ID_PREV,credit_card_balance,SK_ID_PREV,3840312,1082816,28.196,WARNING
