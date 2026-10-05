@@ -1,0 +1,34 @@
+{
+  "random_state": 42,
+  "evaluation_split": "validation",
+  "test_split_used": false,
+  "decision_threshold": 0.5,
+  "positive_rate": 0.08072908198107379,
+  "smote_used": false,
+  "resampling_used": false,
+  "selection_priority": [
+    "pr_auc",
+    "roc_auc",
+    "f1"
+  ],
+  "models_evaluated": [
+    "xgboost",
+    "logistic_regression",
+    "random_forest"
+  ],
+  "best_validation_model": "xgboost",
+  "best_pr_auc": 0.2590617318672553,
+  "artifacts": {
+    "comparison": "results/metrics/imbalance_comparison.csv",
+    "confusion_matrices": [
+      "results/metrics/confusion_matrix_xgboost.csv",
+      "results/metrics/confusion_matrix_logistic_regression.csv",
+      "results/metrics/confusion_matrix_random_forest.csv"
+    ],
+    "confusion_matrix_figures": [
+      "results/figures/confusion_matrix_xgboost.png",
+      "results/figures/confusion_matrix_logistic_regression.png",
+      "results/figures/confusion_matrix_random_forest.png"
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "random_state": 42,
+  "selection_split": "validation",
+  "test_split_used": false,
+  "trained_models": [
+    "logistic_regression",
+    "random_forest",
+    "xgboost"
+  ],
+  "class_imbalance": {
+    "logistic_regression": "class_weight=balanced",
+    "random_forest": "class_weight=balanced_subsample",
+    "xgboost": "scale_pos_weight=negative_count/positive_count"
+  },
+  "artifacts": [
+    "models/logistic_regression.joblib",
+    "models/random_forest.joblib",
+    "models/xgboost.joblib"
+  ],
+  "comparison_report": "results/metrics/model_comparison.csv"
+}
