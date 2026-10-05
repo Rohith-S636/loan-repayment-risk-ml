@@ -90,11 +90,14 @@ Launch the polished Streamlit demo:
 streamlit run app\app.py
 ```
 
-The demo provides:
-1. **Risk Assessment** — applicant/application form using a validation-derived historical profile, with derived financial features and frozen-model risk prediction.
-2. **Model Performance** — final test metrics, confusion matrix, ROC and PR curves.
-3. **Why This Prediction?** — validation-only permutation feature importance.
-4. **Threshold & Selection** — model comparison and the rationale for threshold 0.58.
+The demo is a **single-page assessment dashboard**. It provides one continuous presentation flow:
+1. **Applicant details** — age, employment, family, income, loan amount, annuity, and goods price.
+2. **Risk score** — probability, LOW/HIGH decision, frozen threshold 0.58, and distance from threshold.
+3. **Why this score?** — derived financial indicators plus individual XGBoost prediction contributions for the submitted applicant.
+4. **Overall model signals** — validation-only permutation importance.
+5. **Model evidence** — training/validation/test methodology, model comparison, final test metrics, confusion matrix, ROC/PR curves, and threshold analysis.
+
+The page uses a validation-derived historical credit profile so the complete multi-table feature representation can be demonstrated without asking users to invent unavailable historical data. External source indicators are not user-entered.
 
 The UI never trains, tunes, or evaluates the test set.
 
