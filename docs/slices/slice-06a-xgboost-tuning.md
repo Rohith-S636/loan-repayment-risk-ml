@@ -31,24 +31,24 @@ The experiment is deliberately limited rather than exhaustive. XGBoost is the on
 The class-weight search varies the baseline negative/positive ratio by 0.75x, 1.00x, and 1.25x.
 
 ## Acceptance criteria
-- [ ] All planned candidate trials complete successfully.
-- [ ] Validation PR-AUC is recorded for every trial.
-- [ ] Validation ROC-AUC, precision, recall, and F1 are recorded.
-- [ ] Best configuration is selected using validation data only.
-- [ ] Tuned model is saved separately as `models/xgboost_tuned.joblib`.
-- [ ] Tuning metadata and trial results are saved.
-- [ ] Test data is not used for tuning.
+- [x] All planned candidate trials complete successfully.
+- [x] Validation PR-AUC is recorded for every trial.
+- [x] Validation ROC-AUC, precision, recall, and F1 are recorded.
+- [x] Best configuration is selected using validation data only.
+- [x] Tuned model is saved separately as `models/xgboost_tuned.joblib`.
+- [x] Tuning metadata and trial results are saved.
+- [x] Test data is not used for tuning.
 
 ## Decision rule
 Compare the tuned model against the Slice 05 baseline:
 - Baseline validation PR-AUC: **0.259062**
 - Baseline validation ROC-AUC: **0.772189**
 
-Accept the tuned model only if it provides a meaningful validation improvement. If the improvement is negligible, retain the original XGBoost model.
+The tuned model was accepted after improving validation PR-AUC from **0.259062** to **0.261614** and validation ROC-AUC from **0.772189** to **0.774488**.
 
 ## Required follow-up if accepted
-1. Re-run Slice 07 threshold analysis using the accepted model.
-2. Freeze the new validation-selected threshold.
-3. Re-run Slice 08 final test evaluation exactly once.
-4. Do not tune again after inspecting the new test results.
-5. Use the accepted model and frozen threshold in Slice 09.
+1. [x] Re-run Slice 07 threshold analysis using the accepted model.
+2. [x] Freeze the new validation-selected threshold at **0.58**.
+3. [x] Re-run Slice 08 final test evaluation exactly once.
+4. [x] Do not tune again after inspecting the new test results.
+5. [x] Use the accepted model and frozen threshold in Slice 09.

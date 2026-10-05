@@ -7,10 +7,10 @@ By the end of Day 2, the ML system and academic submission artifacts are complet
 Day 2.
 
 ## Slices
-- [ ] `slice-06a-xgboost-tuning` — run the controlled XGBoost validation experiment.
-- [ ] `slice-07-threshold-analysis` — select the classification threshold on validation data for the accepted model.
-- [ ] `slice-08-final-evaluation` — freeze model/threshold and evaluate on untouched test data.
-- [ ] `slice-09-explainability-demo` — feature importance and Streamlit demo using the final selected model.
+- [x] `slice-06a-xgboost-tuning` — run the controlled XGBoost validation experiment.
+- [x] `slice-07-threshold-analysis` — select the classification threshold on validation data for the accepted model.
+- [x] `slice-08-final-evaluation` — freeze model/threshold and evaluate on untouched test data.
+- [x] `slice-09-explainability-demo` — feature importance and Streamlit demo using the final selected model.
 - [ ] `slice-10-submission` — README, two-page report, slides, cleanup.
 
 ## Depends on
@@ -22,4 +22,4 @@ Sprint 01 baseline model outputs and the Slice 04 preprocessing bundle.
 - Final metrics and figures are recorded.
 - Feature importance is available for the final selected model.
 - Demo runs locally.
-- README, report, and presentation are complete.
+- README is complete; the report and presentation deliverables remain outstanding because their source/PDF files are not currently present.

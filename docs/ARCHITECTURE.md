@@ -72,6 +72,14 @@ Selection is based on validation PR-AUC, with validation ROC-AUC and F1 as tie-b
 ## Evaluation
 ROC-AUC, PR-AUC, precision, recall, F1, and confusion matrix. Model selection and threshold selection use validation data only. Final test evaluation happens only after the selected model and threshold are frozen.
 
+## Accepted final configuration
+- Model: tuned XGBoost saved as `models/xgboost_tuned.joblib`.
+- Threshold: **0.58**, selected on validation data by maximizing F1.
+- Preprocessing: frozen training-fitted bundle saved under `models/`.
+- Final test results: ROC-AUC **0.778114**, PR-AUC **0.273767**, precision **0.256052**, recall **0.472910**, and F1 **0.332225**.
+- Final test confusion matrix: TN **49,716**, FP **6,822**, FN **2,617**, TP **2,348**.
+- Test evaluation was completed only after tuning and threshold selection; no post-test tuning was performed.
+
 ## Constraints
 - Raw data outside Git.
 - Avoid loading all large tables simultaneously.

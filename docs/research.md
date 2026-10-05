@@ -38,7 +38,7 @@ Only XGBoost is tuned because it was the strongest baseline model. The experimen
 
 The primary selection metric is validation PR-AUC. Validation ROC-AUC and F1 are secondary tie-breakers. The existing Slice 04 train/validation IDs and preprocessing are reused. The test split is never loaded or used during tuning.
 
-If tuning is accepted, the selected model is frozen, threshold analysis is rerun on validation data, and the final test set is evaluated exactly once with the new frozen model and threshold.
+The tuned model was accepted after improving validation PR-AUC to **0.261614** and validation ROC-AUC to **0.774488**. Threshold analysis was rerun on validation data, selecting **0.58** by maximizing F1, and the final test set was evaluated exactly once with the frozen model and threshold. Final test ROC-AUC was **0.778114**, PR-AUC **0.273767**, precision **0.256052**, recall **0.472910**, and F1 **0.332225**.
 
 ## Dataset
 The seven local source tables are application_train, bureau, bureau_balance, previous_application, POS_CASH_balance, installments_payments, and credit_card_balance. The inspected raw collection is approximately 2.3 GB.

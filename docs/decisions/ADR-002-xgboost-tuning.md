@@ -1,7 +1,7 @@
 # ADR-002 — Controlled XGBoost Tuning
 
 ## Status
-Proposed experiment — final acceptance depends on validation results.
+Accepted and completed.
 
 ## Context
 Slice 05 established XGBoost as the strongest baseline model. The baseline validation results were:
@@ -43,15 +43,14 @@ Parameters:
 - `results/tuning/tuning_metadata.json`
 - `models/xgboost_tuned.joblib`
 
-## Acceptance rule
-The tuned model is accepted only when its validation improvement over the baseline is meaningful. If the gain is negligible, retain the original XGBoost model.
+## Observed result and acceptance
+The tuned candidate improved validation PR-AUC from **0.259062** to **0.261614** and validation ROC-AUC from **0.772189** to **0.774488**. The tuned model was accepted as the final model because it improved the primary validation metric under the predefined selection protocol.
 
-## Consequence
-If the tuned model is accepted:
-1. Rerun Slice 07 threshold selection.
-2. Freeze the new threshold.
-3. Rerun Slice 08 final test evaluation once.
-4. Use the accepted model and threshold in Slice 09.
-5. Do not tune again after inspecting the new test results.
+## Completed consequence
+1. Slice 07 threshold selection was rerun for the accepted model.
+2. Threshold **0.58** was selected on validation data by maximizing F1.
+3. Slice 08 final test evaluation was rerun once with the frozen model and threshold.
+4. Slice 09 uses the accepted model and frozen threshold.
+5. No tuning was performed after final test inspection.
 
-The previously generated Slice 08 test metrics remain useful as the baseline experiment record, but they are not the final model results if a tuned model is subsequently accepted.
+The final accepted-model test results are ROC-AUC **0.778114**, PR-AUC **0.273767**, precision **0.256052**, recall **0.472910**, and F1 **0.332225**.
