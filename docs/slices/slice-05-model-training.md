@@ -12,6 +12,7 @@ Train Logistic Regression, Random Forest, and XGBoost. Use HistGradientBoosting 
 - [ ] Probability predictions are available.
 - [ ] Random seed/settings are recorded.
 - [ ] Model comparison results are saved.
+- [ ] Baseline model comparison is complete before any optional tuning.
 
 ## Out of scope
-Exhaustive hyperparameter tuning.
+Exhaustive hyperparameter tuning. Controlled XGBoost tuning is handled separately in Slice 06A.
