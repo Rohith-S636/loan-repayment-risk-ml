@@ -87,7 +87,7 @@ python src\explainability.py
 Launch the polished Streamlit demo:
 
 ```powershell
-streamlit run app\app.py
+python -m streamlit run app\app.py
 ```
 
 The demo is a **single-page assessment dashboard**. It provides one continuous presentation flow:
@@ -97,7 +97,7 @@ The demo is a **single-page assessment dashboard**. It provides one continuous p
 4. **Overall model signals** — validation-only permutation importance.
 5. **Model evidence** — training/validation/test methodology, model comparison, final test metrics, confusion matrix, ROC/PR curves, and threshold analysis.
 
-The page uses a validation-derived historical credit profile so the complete multi-table feature representation can be demonstrated without asking users to invent unavailable historical data. External source indicators are not user-entered.
+The page uses controlled synthetic historical-reference profiles so the complete multi-table feature representation can be demonstrated without selecting an arbitrary real applicant. The neutral profile is the validation median; the high-risk and low-risk stress-test references are aggregate profiles from the highest/lowest 1% of frozen-model validation scores. These profiles are demonstration controls, not additional trained models. External source indicators are not user-entered.
 
 The UI never trains, tunes, or evaluates the test set.
 
