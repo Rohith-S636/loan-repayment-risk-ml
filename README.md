@@ -91,7 +91,7 @@ streamlit run app\app.py
 ```
 
 The demo provides:
-1. **Risk Predictor** — reproducible validation applicant and controlled scenario explorer.
+1. **Risk Assessment** — applicant/application form using a validation-derived historical profile, with derived financial features and frozen-model risk prediction.
 2. **Model Performance** — final test metrics, confusion matrix, ROC and PR curves.
 3. **Why This Prediction?** — validation-only permutation feature importance.
 4. **Threshold & Selection** — model comparison and the rationale for threshold 0.58.
