@@ -29,6 +29,17 @@ Build a working ML system that predicts loan repayment difficulty at applicant l
 - If tuning is accepted, threshold selection and final test evaluation are repeated.
 - No tuning is permitted after final test inspection.
 
+## Accepted experiment result
+- Accepted model: tuned XGBoost (`models/xgboost_tuned.joblib`).
+- Validation PR-AUC improved from **0.259062** to **0.261614**.
+- Validation ROC-AUC improved from **0.772189** to **0.774488**.
+- Validation-selected threshold: **0.58**, chosen by maximizing F1.
+- Final untouched-test ROC-AUC: **0.778114**.
+- Final untouched-test PR-AUC: **0.273767**.
+- Final untouched-test precision: **0.256052**.
+- Final untouched-test recall: **0.472910**.
+- Final untouched-test F1: **0.332225**.
+
 ## Out of scope
 - Exhaustive hyperparameter optimization across all models.
 - K-means/PCA/t-SNE.
@@ -46,4 +57,4 @@ Build a working ML system that predicts loan repayment difficulty at applicant l
 - The selected model is determined from validation data only.
 - Threshold is selected on validation data and then frozen.
 - Final test results, feature importance, and demo are available.
-- README, two-page report, and presentation can be produced from recorded results.
+- README, two-page report, and presentation use the recorded results above.
