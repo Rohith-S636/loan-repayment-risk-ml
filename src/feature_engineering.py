@@ -91,32 +91,32 @@ def add_application_features(
 ) -> list[str]:
     """Join selected current-application variables and derive affordability features."""
     available = [
-        column for column in APPLICATION_FEATURES
+        column
+        for column in APPLICATION_FEATURES
         if column in application.columns
     ]
-
     selected = application[["SK_ID_CURR", *available]].copy()
 
-    duplicate_ids = selected["SK_ID_CURR"].duplicated().any()
-    if duplicate_ids:
+    if selected["SK_ID_CURR"].duplicated().any():
         raise ValueError("application_train.SK_ID_CURR must be unique")
 
-    before = len(modeling)
-    modeling.merge(
-        selected,
-        on="SK_ID_CURR",
-        how="left",
-        validate="one_to_one",
-        suffixes=("", "_APPLICATION"),
-    )
+    if len(selected) != len(modeling):
+        raise RuntimeError(
+            "application_train and modeling_data contain different row counts"
+        )
 
-    # Merge in-place through column assignment to keep the modeling table stable.
+    application_ids = set(application["SK_ID_CURR"])
+    modeling_ids = set(modeling["SK_ID_CURR"])
+    if application_ids != modeling_ids:
+        raise RuntimeError(
+            "application_train and modeling_data contain different applicant IDs"
+        )
+
     application_indexed = selected.set_index("SK_ID_CURR")
     for column in available:
-        modeling[column] = modeling["SK_ID_CURR"].map(application_indexed[column])
-
-    if len(modeling) != before or not modeling["SK_ID_CURR"].is_unique:
-        raise RuntimeError("Application feature join changed applicant population")
+        modeling[column] = modeling["SK_ID_CURR"].map(
+            application_indexed[column]
+        )
 
     created: list[str] = []
 
@@ -133,9 +133,7 @@ def add_application_features(
             created.append(name)
 
     if "DAYS_BIRTH" in modeling.columns:
-        modeling["APP_AGE_YEARS"] = (
-            modeling["DAYS_BIRTH"].abs() / 365.25
-        )
+        modeling["APP_AGE_YEARS"] = modeling["DAYS_BIRTH"].abs() / 365.25
         created.append("APP_AGE_YEARS")
 
     if "DAYS_EMPLOYED" in modeling.columns:
@@ -145,7 +143,10 @@ def add_application_features(
         modeling["APP_EMPLOYED_YEARS"] = employed.abs() / 365.25
         created.append("APP_EMPLOYED_YEARS")
 
-    if "AMT_INCOME_TOTAL" in modeling.columns and "CNT_FAM_MEMBERS" in modeling.columns:
+    if (
+        "AMT_INCOME_TOTAL" in modeling.columns
+        and "CNT_FAM_MEMBERS" in modeling.columns
+    ):
         modeling["APP_INCOME_PER_FAMILY_MEMBER"] = safe_divide(
             modeling["AMT_INCOME_TOTAL"],
             modeling["CNT_FAM_MEMBERS"],
@@ -378,8 +379,6 @@ def build_features() -> tuple[pd.DataFrame, list[str]]:
     created.extend(add_installment_features(modeling))
     created.extend(add_credit_card_features(modeling))
 
-    # Remove accidental non-finite values while retaining missing values
-    # for Slice 04's leakage-safe preprocessing.
     numeric_columns = modeling.select_dtypes(include=[np.number]).columns
     modeling[numeric_columns] = modeling[numeric_columns].replace(
         [np.inf, -np.inf],
@@ -387,7 +386,8 @@ def build_features() -> tuple[pd.DataFrame, list[str]]:
     )
 
     target_columns = [
-        column for column in modeling.columns
+        column
+        for column in modeling.columns
         if column.upper().startswith("TARGET_")
     ]
     if target_columns:
@@ -395,7 +395,10 @@ def build_features() -> tuple[pd.DataFrame, list[str]]:
             f"Target-derived columns found: {target_columns}"
         )
 
-    if len(modeling) != len(application) or not modeling["SK_ID_CURR"].is_unique:
+    if (
+        len(modeling) != len(application)
+        or not modeling["SK_ID_CURR"].is_unique
+    ):
         raise RuntimeError("Feature engineering changed applicant population")
 
     return modeling, created
@@ -506,8 +509,13 @@ def main() -> None:
     if "TARGET" not in engineered.columns:
         raise RuntimeError("Slice 03 validation failed: TARGET missing")
 
-    if any(column.upper().startswith("TARGET_") for column in engineered.columns):
-        raise RuntimeError("Slice 03 validation failed: target-derived feature found")
+    if any(
+        column.upper().startswith("TARGET_")
+        for column in engineered.columns
+    ):
+        raise RuntimeError(
+            "Slice 03 validation failed: target-derived feature found"
+        )
 
     print("Slice 03 feature engineering completed successfully.")
 
