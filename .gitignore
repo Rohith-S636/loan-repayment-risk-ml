@@ -22,3 +22,4 @@ results/predictions/*.csv
 results/figures/*.png
 results/aggregation/
 results/feature_engineering/
+results/preprocessing/
