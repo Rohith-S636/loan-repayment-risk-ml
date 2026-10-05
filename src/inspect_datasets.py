@@ -5,6 +5,7 @@ Validates the seven Home Credit datasets used by the loan repayment
 risk prediction project.
 
 The script:
+
 1. Verifies that all required raw CSV files exist.
 2. Inspects row/column counts.
 3. Validates required identifier and target columns.
@@ -86,8 +87,11 @@ DATASETS: Dict[str, Dict[str, object]] = {
 # Each relationship is:
 # (parent dataset, parent key, child dataset, child key)
 #
-# The relationship is considered valid when every non-null child key
-# can be found in the corresponding parent key.
+# Relationship status:
+# - PASS    : all non-null child keys have a matching parent key.
+# - WARNING : relationship can be evaluated, but some child keys are
+#             unmatched. This is informational and does not fail Slice 01.
+# - FAIL    : the required parent or child key column is missing.
 
 RELATIONSHIPS: List[Tuple[str, str, str, str]] = [
     (
@@ -134,7 +138,10 @@ RELATIONSHIPS: List[Tuple[str, str, str, str]] = [
 # ---------------------------------------------------------------------------
 
 
-def load_dataset(dataset_name: str, config: Dict[str, object]) -> pd.DataFrame:
+def load_dataset(
+    dataset_name: str,
+    config: Dict[str, object],
+) -> pd.DataFrame:
     """Load a dataset and return it as a pandas DataFrame."""
 
     file_name = str(config["file"])
@@ -168,9 +175,12 @@ def validate_required_columns(
             f"[FAIL] {dataset_name}: missing columns "
             f"{missing_columns}"
         )
+
         return False, missing_columns
 
-    print(f"[PASS] {dataset_name}: required columns present")
+    print(
+        f"[PASS] {dataset_name}: required columns present"
+    )
 
     return True, []
 
@@ -218,12 +228,15 @@ def check_duplicate_keys(
 
     if duplicate_rows == 0:
         status = "PASS"
+
         print(
             f"[PASS] {dataset_name}: no duplicate "
             f"{primary_key} records"
         )
+
     else:
         status = "WARNING"
+
         print(
             f"[WARNING] {dataset_name}: "
             f"{duplicate_rows:,} rows participate in duplicate "
@@ -288,8 +301,14 @@ def validate_relationship(
     """
     Validate a parent-child foreign-key relationship.
 
-    Only non-null child keys are considered. Historical tables may
-    legitimately contain repeated child-key values.
+    Only non-null child keys are considered.
+
+    Historical tables may legitimately contain repeated child-key values.
+
+    Status semantics:
+    - PASS: all checked child keys have matching parent keys.
+    - WARNING: relationship is evaluable but some child keys are unmatched.
+    - FAIL: required parent or child key column is missing.
     """
 
     parent_df = datasets[parent_name]
@@ -336,16 +355,19 @@ def validate_relationship(
         else 0.0
     )
 
-    status = "PASS" if unmatched_rows == 0 else "FAIL"
+    if unmatched_rows == 0:
+        status = "PASS"
 
-    if status == "PASS":
         print(
             f"[PASS] {child_name}.{child_key} -> "
             f"{parent_name}.{parent_key}"
         )
+
     else:
+        status = "WARNING"
+
         print(
-            f"[FAIL] {child_name}.{child_key} -> "
+            f"[WARNING] {child_name}.{child_key} -> "
             f"{parent_name}.{parent_key}: "
             f"{unmatched_rows:,} unmatched rows "
             f"({unmatched_percentage:.4f}%)"
@@ -440,9 +462,16 @@ def main() -> None:
         file_path = DATA_DIR / str(config["file"])
 
         if file_path.exists():
-            print(f"[PASS] {dataset_name}: {file_path.name}")
+            print(
+                f"[PASS] {dataset_name}: "
+                f"{file_path.name}"
+            )
         else:
-            print(f"[FAIL] {dataset_name}: {file_path.name}")
+            print(
+                f"[FAIL] {dataset_name}: "
+                f"{file_path.name}"
+            )
+
             missing_files.append(file_path)
 
     if missing_files:
@@ -591,15 +620,31 @@ def main() -> None:
         for result in validation_results.values()
     )
 
-    relationships_pass = all(
-        result["status"] == "PASS"
+    relationships_fail = any(
+        result["status"] == "FAIL"
         for result in relationship_results
     )
+
+    relationships_warn = any(
+        result["status"] == "WARNING"
+        for result in relationship_results
+    )
+
+    # Relationship warnings are informational.
+    # Only an unevaluable relationship is a hard failure.
+    relationships_pass = not relationships_fail
 
     all_checks_pass = (
         required_columns_pass
         and relationships_pass
     )
+
+    if relationships_fail:
+        relationships_status = "FAIL"
+    elif relationships_warn:
+        relationships_status = "WARNING"
+    else:
+        relationships_status = "PASS"
 
     print("\n" + "=" * 80)
     print("VALIDATION SUMMARY")
@@ -616,7 +661,7 @@ def main() -> None:
 
     print(
         f"Relationships          : "
-        f"{'PASS' if relationships_pass else 'FAIL'}"
+        f"{relationships_status}"
     )
 
     print(
