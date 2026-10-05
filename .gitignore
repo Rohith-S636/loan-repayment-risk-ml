@@ -20,3 +20,4 @@ models/*.pkl
 results/metrics/*.csv
 results/predictions/*.csv
 results/figures/*.png
+results/aggregation/
