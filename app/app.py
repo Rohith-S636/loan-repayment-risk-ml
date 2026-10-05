@@ -1,10 +1,10 @@
 """
-Loan Repayment Risk — Slice 09 Streamlit demonstration.
+Loan Repayment Risk — single-page academic demonstration.
 
-The app is inference-only. It uses the frozen accepted model and threshold
-recorded by Slice 07. The prediction page accepts understandable applicant
-details, derives the corresponding application features, and combines them
-with a selected validation applicant's historical credit profile.
+Inference only:
+- Uses the frozen tuned XGBoost model.
+- Uses the frozen 0.58 decision threshold.
+- Never trains, tunes, or evaluates the test set from the UI.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ import joblib
 import numpy as np
 import pandas as pd
 import streamlit as st
+from xgboost import DMatrix
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_PATH = ROOT / "data" / "processed" / "engineered_data.csv"
@@ -40,37 +41,52 @@ FALLBACK_METRICS = {
     "true_positive": 2348,
 }
 
+MODEL_COMPARISON = pd.DataFrame(
+    {
+        "Model": [
+            "Logistic Regression",
+            "Random Forest",
+            "Baseline XGBoost",
+            "Tuned XGBoost",
+        ],
+        "Validation PR-AUC": [0.236606, 0.207645, 0.259062, 0.261614],
+        "Validation ROC-AUC": [0.759910, 0.740854, 0.772189, 0.774488],
+        "Validation F1": [0.269087, 0.277927, 0.291262, 0.305564],
+    }
+)
+
 st.set_page_config(
-    page_title="Loan Repayment Risk",
+    page_title="Loan Repayment Risk Assessment",
     page_icon="◈",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 st.markdown(
     """
     <style>
     .stApp { background: #0b1020; }
-    [data-testid="stSidebar"] { background: #11182b; }
     .hero {
-        padding: 28px 30px; border-radius: 18px; margin-bottom: 20px;
-        background: linear-gradient(135deg, #17223c 0%, #11182b 100%);
-        border: 1px solid #293756;
+        padding: 30px 34px; border-radius: 20px; margin-bottom: 22px;
+        background: linear-gradient(135deg, #17223c 0%, #101729 100%);
+        border: 1px solid #2b3b5d;
     }
-    .hero h1 { margin: 0; font-size: 2.35rem; color: #f5f7ff; }
-    .hero p { color: #aebbd6; margin: 8px 0 0; font-size: 1rem; }
-    .section-card {
-        padding: 18px; border-radius: 16px; margin-bottom: 14px;
+    .hero h1 { margin: 0; font-size: 2.45rem; color: #f5f7ff; }
+    .hero p { color: #aebbd6; margin: 9px 0 0; font-size: 1rem; }
+    .section {
+        padding: 20px 22px; border-radius: 16px; margin: 18px 0;
         background: #11182b; border: 1px solid #263550;
     }
     .risk-card {
         padding: 28px; border-radius: 18px; text-align: center;
         background: #141d32; border: 1px solid #30405f;
     }
-    .risk-prob { font-size: 3.1rem; font-weight: 800; margin: 8px 0; }
+    .risk-prob { font-size: 3.5rem; font-weight: 800; margin: 5px 0; }
     .risk-low { color: #57d7a2; }
     .risk-high { color: #ff7d8b; }
     .small-note { color: #8e9bb6; font-size: .88rem; }
+    .explain-positive { color: #ff8a8a; }
+    .explain-negative { color: #62d9ad; }
     div[data-testid="stMetric"] {
         background: #11182b; border: 1px solid #263550;
         padding: 12px; border-radius: 12px;
@@ -86,9 +102,7 @@ def load_artifacts():
     required = [DATA_PATH, BUNDLE_PATH, THRESHOLD_PATH]
     missing = [str(p.relative_to(ROOT)) for p in required if not p.exists()]
     if missing:
-        raise FileNotFoundError(
-            "Missing local pipeline artifacts: " + ", ".join(missing)
-        )
+        raise FileNotFoundError("Missing local artifacts: " + ", ".join(missing))
 
     threshold = json.loads(THRESHOLD_PATH.read_text(encoding="utf-8"))
     model_path = ROOT / threshold["model_path"]
@@ -102,11 +116,7 @@ def load_artifacts():
     feature_columns = bundle["feature_columns"]
     id_column = bundle["id_column"]
     validation_ids = set(bundle["split_ids"]["validation"])
-    validation = data[data[id_column].isin(validation_ids)].copy()
-    validation = validation.sort_values(id_column)
-
-    if len(validation) != bundle["split_sizes"]["validation"]:
-        raise ValueError("Validation rows do not match the saved Slice 04 split.")
+    validation = data[data[id_column].isin(validation_ids)].sort_values(id_column)
 
     transformed_names = list(bundle["preprocessor"].get_feature_names_out())
     if len(transformed_names) != model.n_features_in_:
@@ -122,6 +132,7 @@ def load_artifacts():
         "validation": validation,
         "feature_columns": feature_columns,
         "id_column": id_column,
+        "transformed_names": transformed_names,
     }
 
 
@@ -131,30 +142,6 @@ def load_metrics() -> dict:
     return FALLBACK_METRICS.copy()
 
 
-def get_prediction(artifacts: dict, row: pd.DataFrame) -> tuple[float, int]:
-    X = artifacts["bundle"]["preprocessor"].transform(
-        row[artifacts["feature_columns"]]
-    )
-    probability = float(artifacts["model"].predict_proba(X)[:, 1][0])
-    prediction = int(probability >= artifacts["threshold"])
-    return probability, prediction
-
-
-def render_header(artifacts: dict) -> None:
-    st.markdown(
-        f"""
-        <div class="hero">
-            <h1>Loan Repayment Risk Assessment</h1>
-            <p>
-                AI-based repayment-difficulty assessment using tuned XGBoost
-                · frozen decision threshold {artifacts['threshold']:.2f}
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
 def safe_ratio(numerator: float, denominator: float) -> float:
     if denominator == 0:
         return np.nan
@@ -162,7 +149,6 @@ def safe_ratio(numerator: float, denominator: float) -> float:
 
 
 def finite_or(value, fallback: float) -> float:
-    """Return a finite numeric value or a safe fallback for form defaults."""
     try:
         value = float(value)
     except (TypeError, ValueError):
@@ -181,11 +167,8 @@ def build_demo_row(
     credit: float,
     annuity: float,
     goods_price: float,
-    ext_source_1: float,
-    ext_source_2: float,
-    ext_source_3: float,
 ) -> pd.DataFrame:
-    """Apply user-facing application details to a validation-derived profile."""
+    """Replace current-application information while retaining history."""
     row = base.copy()
 
     row["AMT_INCOME_TOTAL"] = income
@@ -196,9 +179,6 @@ def build_demo_row(
     row["DAYS_EMPLOYED"] = -employment_years * 365.25
     row["CNT_CHILDREN"] = children
     row["CNT_FAM_MEMBERS"] = family_members
-    row["EXT_SOURCE_1"] = ext_source_1
-    row["EXT_SOURCE_2"] = ext_source_2
-    row["EXT_SOURCE_3"] = ext_source_3
 
     row["APP_CREDIT_TO_INCOME"] = safe_ratio(credit, income)
     row["APP_ANNUITY_TO_INCOME"] = safe_ratio(annuity, income)
@@ -210,271 +190,128 @@ def build_demo_row(
     row["APP_INCOME_PER_FAMILY_MEMBER"] = safe_ratio(
         income, family_members
     )
-
     return row
 
 
-def render_risk_result(
-    probability: float,
-    prediction: int,
-    threshold: float,
-    baseline_probability: float,
-    model_name: str,
+def predict_and_explain(artifacts: dict, row: pd.DataFrame):
+    X = artifacts["bundle"]["preprocessor"].transform(
+        row[artifacts["feature_columns"]]
+    )
+    model = artifacts["model"]
+
+    probability = float(model.predict_proba(X)[:, 1][0])
+    prediction = int(probability >= artifacts["threshold"])
+
+    # Native XGBoost contributions explain the individual prediction in
+    # log-odds space. Last value is the bias/base contribution.
+    booster = model.get_booster()
+    contributions = booster.predict(
+        DMatrix(X),
+        pred_contribs=True,
+        validate_features=False,
+    )[0]
+
+    names = np.asarray(artifacts["transformed_names"])
+    feature_contrib = pd.DataFrame(
+        {
+            "feature": names,
+            "contribution": contributions[:-1],
+        }
+    )
+    feature_contrib["abs_contribution"] = feature_contrib["contribution"].abs()
+    feature_contrib = feature_contrib.sort_values(
+        "abs_contribution", ascending=False
+    )
+
+    return probability, prediction, feature_contrib
+
+
+def readable_feature(name: str) -> str:
+    name = (
+        name.replace("num__", "")
+        .replace("cat__", "")
+        .replace("missingindicator_", "Missing: ")
+    )
+    replacements = {
+        "AMT_INCOME_TOTAL": "Annual income",
+        "AMT_CREDIT": "Loan / credit amount",
+        "AMT_ANNUITY": "Annual repayment / annuity",
+        "AMT_GOODS_PRICE": "Goods / purchase price",
+        "DAYS_BIRTH": "Age",
+        "DAYS_EMPLOYED": "Employment duration",
+        "CNT_CHILDREN": "Number of children",
+        "CNT_FAM_MEMBERS": "Family members",
+        "APP_CREDIT_TO_INCOME": "Loan-to-income ratio",
+        "APP_ANNUITY_TO_INCOME": "Annuity-to-income ratio",
+        "APP_GOODS_PRICE_TO_INCOME": "Purchase-price-to-income ratio",
+        "APP_CREDIT_TO_GOODS_PRICE": "Loan-to-goods-price ratio",
+        "APP_ANNUITY_TO_CREDIT": "Annuity-to-loan ratio",
+        "APP_AGE_YEARS": "Age (derived)",
+        "APP_EMPLOYED_YEARS": "Employment duration (derived)",
+        "APP_INCOME_PER_FAMILY_MEMBER": "Income per family member",
+        "PREV_REFUSAL_RATIO": "Previous application refusal ratio",
+        "BUREAU_DEBT_TO_CREDIT": "Bureau debt-to-credit ratio",
+        "INST_AVG_DELAY_POSITIVE": "Average installment delay",
+        "CC_HIGH_UTILIZATION_FLAG": "High credit-card utilization",
+    }
+    return replacements.get(name, name.replace("_", " ").title())
+
+
+def render_local_explanation(
+    contribution_df: pd.DataFrame,
+    row: pd.DataFrame,
 ) -> None:
-    risk_class = "risk-high" if prediction else "risk-low"
-    label = "HIGH RISK" if prediction else "LOW RISK"
-    delta = probability - baseline_probability
+    st.markdown("### Why did the model give this risk score?")
 
-    left, right = st.columns([1.15, 1])
+    top = contribution_df.head(10).copy()
+    top["Feature"] = top["feature"].map(readable_feature)
+    top["Effect"] = np.where(
+        top["contribution"] >= 0,
+        "Pushes risk higher",
+        "Pushes risk lower",
+    )
+    top["Contribution"] = top["contribution"]
 
-    with left:
-        st.markdown(
-            f"""
-            <div class="risk-card">
-                <div class="small-note">
-                    Predicted probability of repayment difficulty
-                </div>
-                <div class="risk-prob {risk_class}">{probability:.1%}</div>
-                <div class="{risk_class}"
-                     style="font-size:1.25rem;font-weight:700">
-                    {label}
-                </div>
-                <div class="small-note">
-                    Decision threshold: {threshold:.0%}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    with right:
-        st.metric(
-            "Change from selected applicant baseline",
-            f"{delta:+.1%}",
-        )
-        st.metric("Model", model_name)
-        st.caption(
-            "The score is generated by the frozen preprocessing pipeline "
-            "and tuned XGBoost model. No training or tuning occurs in the app."
-        )
-
-
-def render_predictor(artifacts: dict) -> None:
-    st.subheader("Applicant Risk Assessment")
     st.caption(
-        "Enter understandable borrower/application details. The app derives "
-        "the corresponding financial features and combines them with the "
-        "selected validation applicant's historical credit profile."
+        "The chart shows the strongest individual model contributions for this "
+        "applicant. Positive contributions push the model toward repayment "
+        "difficulty; negative contributions push it toward lower risk."
+    )
+    st.bar_chart(
+        top.set_index("Feature")["Contribution"],
+        horizontal=True,
     )
 
-    validation = artifacts["validation"]
-    id_column = artifacts["id_column"]
-
-    profile_ids = validation[id_column].astype(int).tolist()
-    selected_id = st.selectbox(
-        "Demonstration historical profile",
-        profile_ids,
-        index=0,
-        format_func=lambda x: f"Validation applicant {x:,}",
-    )
-    base = validation[validation[id_column] == selected_id].copy()
+    display = top[["Feature", "Effect", "Contribution"]].copy()
+    display["Contribution"] = display["Contribution"].map(lambda x: f"{x:+.3f}")
+    st.dataframe(display, use_container_width=True, hide_index=True)
 
     st.info(
-        "Demo design: current application details are entered below, while "
-        "historical bureau/payment features come from the selected validation "
-        "profile. This lets the complete trained 256-feature pipeline be "
-        "demonstrated without inventing unavailable credit history."
+        "These are model contributions, not causal claims. The explanation "
+        "reflects the complete applicant representation, including retained "
+        "historical credit/payment features."
     )
 
-    source = base.iloc[0]
 
-    preset = st.selectbox(
-        "Optional demo starting point",
-        ["Custom", "Lower-burden example", "Higher-burden example"],
-        help="Presets only change the starting values. You can edit every field.",
-    )
-
-    default_age = float(
-        np.clip(finite_or(source.get("APP_AGE_YEARS"), 35.0), 18, 75)
-    )
-    default_employment = float(
-        np.clip(finite_or(source.get("APP_EMPLOYED_YEARS"), 5.0), 0, 45)
-    )
-    default_children = int(
-        np.clip(finite_or(source.get("CNT_CHILDREN"), 0), 0, 10)
-    )
-    default_family = float(
-        np.clip(
-            finite_or(source.get("CNT_FAM_MEMBERS"), default_children + 1),
-            1,
-            15,
-        )
-    )
-    default_income = max(
-        finite_or(source.get("AMT_INCOME_TOTAL"), 250000.0), 1
-    )
-    default_credit = max(
-        finite_or(source.get("AMT_CREDIT"), 500000.0), 1
-    )
-    default_annuity = max(
-        finite_or(source.get("AMT_ANNUITY"), 25000.0), 1
-    )
-    default_goods = max(
-        finite_or(source.get("AMT_GOODS_PRICE"), default_credit),
-        1,
-    )
-
-    if preset == "Lower-burden example":
-        default_income = max(default_income * 1.75, 500000.0)
-        default_credit = max(default_credit * 0.70, 100000.0)
-        default_annuity = max(default_annuity * 0.75, 5000.0)
-    elif preset == "Higher-burden example":
-        default_income = max(default_income * 0.55, 50000.0)
-        default_credit = max(default_credit * 1.45, 100000.0)
-        default_annuity = max(default_annuity * 1.30, 5000.0)
-
-    with st.form("risk_assessment_form"):
-        st.markdown("### 1. Applicant Information")
-        c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            age = st.number_input(
-                "Age (years)", 18.0, 75.0, default_age, 1.0
-            )
-        with c2:
-            employment_years = st.number_input(
-                "Employment duration (years)",
-                0.0, 45.0, default_employment, 0.5,
-            )
-        with c3:
-            children = st.number_input(
-                "Number of children", 0, 10, default_children, 1
-            )
-        with c4:
-            family_members = st.number_input(
-                "Family members", 1.0, 15.0, default_family, 1.0
-            )
-
-        st.markdown("### 2. Financial Information")
-        c1, c2 = st.columns(2)
-        with c1:
-            income = st.number_input(
-                "Annual income (₹)",
-                min_value=10000.0,
-                value=default_income,
-                step=10000.0,
-                format="%.0f",
-            )
-            credit = st.number_input(
-                "Loan / credit amount (₹)",
-                min_value=10000.0,
-                value=default_credit,
-                step=10000.0,
-                format="%.0f",
-            )
-        with c2:
-            annuity = st.number_input(
-                "Annual repayment / annuity (₹)",
-                min_value=1000.0,
-                value=default_annuity,
-                step=1000.0,
-                format="%.0f",
-            )
-            goods_price = st.number_input(
-                "Goods / purchase price (₹)",
-                min_value=10000.0,
-                value=default_goods,
-                step=10000.0,
-                format="%.0f",
-            )
-
-        st.markdown("### 3. External Credit Indicators")
-        st.caption(
-            "These model inputs are represented on a normalized 0–1 scale in "
-            "the source data; they are not claimed to be consumer credit scores."
-        )
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            ext_source_1 = st.slider(
-                "External indicator 1",
-                0.0, 1.0,
-                float(np.clip(finite_or(source.get("EXT_SOURCE_1"), 0.5), 0, 1)),
-                0.01,
-            )
-        with c2:
-            ext_source_2 = st.slider(
-                "External indicator 2",
-                0.0, 1.0,
-                float(np.clip(finite_or(source.get("EXT_SOURCE_2"), 0.5), 0, 1)),
-                0.01,
-            )
-        with c3:
-            ext_source_3 = st.slider(
-                "External indicator 3",
-                0.0, 1.0,
-                float(np.clip(finite_or(source.get("EXT_SOURCE_3"), 0.5), 0, 1)),
-                0.01,
-            )
-
-        st.markdown("### 4. Assessment")
-        submitted = st.form_submit_button(
-            "Assess Repayment Risk",
-            type="primary",
-            use_container_width=True,
-        )
-
-    if not submitted:
-        st.markdown(
-            """
-            <div class="section-card">
-                <strong>Ready for assessment</strong><br>
-                Enter the borrower details and click <b>Assess Repayment Risk</b>
-                to run the frozen model.
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        return
-
-    row = build_demo_row(
-        base,
-        age=age,
-        employment_years=employment_years,
-        children=children,
-        family_members=family_members,
-        income=income,
-        credit=credit,
-        annuity=annuity,
-        goods_price=goods_price,
-        ext_source_1=ext_source_1,
-        ext_source_2=ext_source_2,
-        ext_source_3=ext_source_3,
-    )
-
-    probability, prediction = get_prediction(artifacts, row)
-    baseline_probability, _ = get_prediction(artifacts, base)
-
-    st.markdown("### Assessment Result")
-    render_risk_result(
-        probability,
-        prediction,
-        artifacts["threshold"],
-        baseline_probability,
-        artifacts["model_name"],
-    )
-
-    st.markdown("### Derived financial indicators")
+def render_input_summary(
+    age, employment_years, children, family_members,
+    income, credit, annuity, goods_price,
+):
+    st.markdown("### What the entered details produce")
     ratios = pd.DataFrame(
         {
-            "Indicator": [
-                "Credit / income",
+            "Derived indicator": [
+                "Loan / income",
                 "Annuity / income",
-                "Credit / goods price",
-                "Annuity / credit",
+                "Goods price / income",
+                "Loan / goods price",
+                "Annuity / loan",
                 "Income / family member",
             ],
             "Value": [
                 safe_ratio(credit, income),
                 safe_ratio(annuity, income),
+                safe_ratio(goods_price, income),
                 safe_ratio(credit, goods_price),
                 safe_ratio(annuity, credit),
                 safe_ratio(income, family_members),
@@ -482,37 +319,58 @@ def render_predictor(artifacts: dict) -> None:
         }
     )
     ratios["Value"] = ratios["Value"].map(
-        lambda value: f"{value:.3f}" if pd.notna(value) else "N/A"
+        lambda x: f"{x:.3f}" if pd.notna(x) else "N/A"
     )
     st.dataframe(ratios, use_container_width=True, hide_index=True)
 
-    with st.expander("Demo methodology"):
-        st.write(
-            "The selected validation applicant supplies the historical "
-            "bureau, previous-application, installment, POS/CASH, and "
-            "credit-card aggregates. The entered application details replace "
-            "the current-application values and their derived ratios. The "
-            "frozen preprocessing pipeline then transforms the complete row "
-            "before the accepted tuned XGBoost model produces the probability."
-        )
 
+def render_model_evidence(artifacts: dict, metrics: dict) -> None:
+    st.markdown("---")
+    st.header("How the model was trained and evaluated")
 
-def render_performance() -> None:
-    st.subheader("Model Performance")
-    metrics = load_metrics()
+    st.markdown(
+        """
+        **Data:** 7 Home Credit tables → applicant-level historical aggregation
+        → domain feature engineering → leakage-safe preprocessing.
 
-    cols = st.columns(5)
-    values = [
-        ("ROC-AUC", metrics["roc_auc"]),
-        ("PR-AUC", metrics["pr_auc"]),
-        ("Precision", metrics["precision"]),
-        ("Recall", metrics["recall"]),
-        ("F1", metrics["f1"]),
-    ]
-    for col, (label, value) in zip(cols, values):
-        col.metric(label, f"{value:.4f}")
+        **Split:** 60% training / 20% validation / 20% untouched test,
+        stratified with random seed 42.
 
-    st.markdown("### Final test confusion matrix")
+        **Models:** Logistic Regression, Random Forest and XGBoost.
+        A controlled 20-trial XGBoost experiment was then performed using
+        training/validation data only.
+
+        **Selection:** validation PR-AUC, with ROC-AUC/F1 tie-breakers.
+        The operating threshold was then selected on validation data by
+        maximizing F1.
+
+        **Final model:** tuned XGBoost with frozen threshold **0.58**.
+        The test set was evaluated only after model and threshold selection.
+        """
+    )
+
+    train_rows = artifacts["bundle"]["split_sizes"]["train"]
+    valid_rows = artifacts["bundle"]["split_sizes"]["validation"]
+    test_rows = artifacts["bundle"]["split_sizes"]["test"]
+
+    c = st.columns(4)
+    c[0].metric("Training rows", f"{train_rows:,}")
+    c[1].metric("Validation rows", f"{valid_rows:,}")
+    c[2].metric("Test rows", f"{test_rows:,}")
+    c[3].metric("Model features", len(artifacts["feature_columns"]))
+
+    st.markdown("### Validation model comparison")
+    st.dataframe(MODEL_COMPARISON, use_container_width=True, hide_index=True)
+
+    st.markdown("### Final untouched test results")
+    c = st.columns(5)
+    for col, label, key in zip(
+        c,
+        ["ROC-AUC", "PR-AUC", "Precision", "Recall", "F1"],
+        ["roc_auc", "pr_auc", "precision", "recall", "f1"],
+    ):
+        col.metric(label, f"{metrics[key]:.4f}")
+
     cm = pd.DataFrame(
         [
             [metrics["true_negative"], metrics["false_positive"]],
@@ -521,97 +379,19 @@ def render_performance() -> None:
         index=["Actual Low Risk", "Actual High Risk"],
         columns=["Predicted Low Risk", "Predicted High Risk"],
     )
+    st.markdown("### Confusion matrix")
     st.dataframe(cm, use_container_width=True)
 
     c1, c2 = st.columns(2)
     with c1:
         if ROC_FIGURE.exists():
-            st.image(str(ROC_FIGURE), caption="Untouched test ROC curve")
-        else:
-            st.info("Run Slice 08 to generate the final ROC curve.")
+            st.image(str(ROC_FIGURE), caption="Final test ROC curve")
     with c2:
         if PR_FIGURE.exists():
-            st.image(str(PR_FIGURE), caption="Untouched test precision-recall curve")
-        else:
-            st.info("Run Slice 08 to generate the final PR curve.")
+            st.image(str(PR_FIGURE), caption="Final test precision-recall curve")
 
-    st.caption(
-        "Final test metrics were produced once after model and threshold "
-        "selection. The test set was not used for tuning."
-    )
-
-
-def render_explainability() -> None:
-    st.subheader("Why does the model make this decision?")
-    if not IMPORTANCE_PATH.exists():
-        st.warning(
-            "Permutation importance has not been generated yet. Run "
-            "python src\\explainability.py from the project root."
-        )
-        return
-
-    importance = pd.read_csv(IMPORTANCE_PATH).sort_values(
-        "importance_mean", ascending=False
-    )
-    top = importance.head(12).copy().sort_values("importance_mean")
-    top["feature"] = (
-        top["feature"]
-        .str.replace("num__", "", regex=False)
-        .str.replace("cat__", "", regex=False)
-    )
-
-    st.bar_chart(
-        top.set_index("feature")["importance_mean"],
-        horizontal=True,
-    )
-    st.caption(
-        "Permutation importance is the mean drop in validation PR-AUC when "
-        "a feature is randomly permuted. It is predictive signal, not causal evidence."
-    )
-
-    st.dataframe(
-        importance.head(15)[
-            ["rank", "feature", "importance_mean", "importance_std"]
-        ],
-        use_container_width=True,
-        hide_index=True,
-    )
-
-
-def render_methodology(artifacts: dict) -> None:
-    st.subheader("Threshold & Model Selection")
-    st.markdown(
-        f"""
-        **Accepted model:** {artifacts['model_name']}  
-        **Frozen decision threshold:** {artifacts['threshold']:.2f}  
-        **Selection metric:** validation PR-AUC, with ROC-AUC/F1 tie-breakers during tuning  
-        **Threshold objective:** maximize validation F1  
-        **Test set used for selection:** No
-        """
-    )
-
-    comparison = pd.DataFrame(
-        {
-            "Model": [
-                "Logistic Regression",
-                "Random Forest",
-                "Baseline XGBoost",
-                "Tuned XGBoost",
-            ],
-            "Validation PR-AUC": [
-                0.236606, 0.207645, 0.259062, 0.261614
-            ],
-            "Validation ROC-AUC": [
-                0.759910, 0.740854, 0.772189, 0.774488
-            ],
-            "Validation F1": [
-                0.269087, 0.277927, 0.291262, 0.305564
-            ],
-        }
-    )
-    st.dataframe(comparison, use_container_width=True, hide_index=True)
-
-    threshold_data = pd.DataFrame(
+    st.markdown("### Decision threshold")
+    threshold_table = pd.DataFrame(
         {
             "Operating point": ["Default 0.50", "Selected 0.58"],
             "Precision": [0.207335, 0.251090],
@@ -619,13 +399,32 @@ def render_methodology(artifacts: dict) -> None:
             "F1": [0.305564, 0.328695],
         }
     )
-    st.markdown("### Threshold decision")
-    st.dataframe(threshold_data, use_container_width=True, hide_index=True)
+    st.dataframe(threshold_table, use_container_width=True, hide_index=True)
 
-    st.info(
-        "The threshold is an operating decision selected on validation data "
-        "to balance precision and recall through F1; it is not a probability "
-        "calibration claim."
+    st.caption(
+        "Final test results were produced once. No tuning or threshold "
+        "selection was performed after inspecting the test set."
+    )
+
+
+def render_global_explainability() -> None:
+    if not IMPORTANCE_PATH.exists():
+        return
+
+    st.markdown("### Overall model signals")
+    importance = pd.read_csv(IMPORTANCE_PATH).sort_values(
+        "importance_mean", ascending=False
+    )
+    top = importance.head(10).copy()
+    top["Feature"] = top["feature"].map(readable_feature)
+    st.bar_chart(
+        top.set_index("Feature")["importance_mean"],
+        horizontal=True,
+    )
+    st.caption(
+        "Validation permutation importance shows which features most affect "
+        "overall validation PR-AUC. It complements the individual prediction "
+        "explanation above and is not causal evidence."
     )
 
 
@@ -633,47 +432,217 @@ def main() -> None:
     try:
         artifacts = load_artifacts()
     except Exception as exc:
-        st.error(
-            "The demo cannot start because required local ML artifacts are missing."
-        )
+        st.error("The demo cannot start because required ML artifacts are missing.")
         st.code(str(exc))
-        st.markdown(
-            "Run the pipeline through Slice 08 first, then launch with "
-            "streamlit run app\\app.py."
-        )
         st.stop()
 
-    render_header(artifacts)
+    metrics = load_metrics()
 
-    st.sidebar.title("Demo Navigation")
-    st.sidebar.caption("Final accepted pipeline")
-    st.sidebar.code(
-        f"{artifacts['model_name']}\\nthreshold = {artifacts['threshold']:.2f}"
+    st.markdown(
+        f"""
+        <div class="hero">
+            <h1>Loan Repayment Risk Assessment</h1>
+            <p>
+                Enter borrower details → generate risk score → understand the
+                decision → review how the model was trained and evaluated.
+                Final model: <b>{artifacts['model_name']}</b> · threshold
+                <b>{artifacts['threshold']:.2f}</b>
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    page = st.sidebar.radio(
-        "Open",
-        [
-            "Risk Assessment",
-            "Model Performance",
-            "Why This Prediction?",
-            "Threshold & Selection",
-        ],
+    st.info(
+        "This is an academic demonstration. A validation applicant is used "
+        "as the historical credit profile so the complete multi-table trained "
+        "feature representation can be demonstrated without asking the user "
+        "to invent unavailable bureau/payment history."
     )
 
-    if page == "Risk Assessment":
-        render_predictor(artifacts)
-    elif page == "Model Performance":
-        render_performance()
-    elif page == "Why This Prediction?":
-        render_explainability()
+    st.header("1. Enter applicant details")
+
+    validation = artifacts["validation"]
+    id_column = artifacts["id_column"]
+    profile_ids = validation[id_column].astype(int).tolist()
+
+    selected_id = st.selectbox(
+        "Historical credit profile",
+        profile_ids,
+        format_func=lambda x: f"Validation profile {x:,}",
+    )
+    base = validation[validation[id_column] == selected_id].copy()
+    source = base.iloc[0]
+
+    default_age = np.clip(
+        finite_or(source.get("APP_AGE_YEARS"), 35.0), 18, 75
+    )
+    default_employment = np.clip(
+        finite_or(source.get("APP_EMPLOYED_YEARS"), 5.0), 0, 45
+    )
+    default_children = int(
+        np.clip(finite_or(source.get("CNT_CHILDREN"), 0), 0, 10)
+    )
+    default_family = np.clip(
+        finite_or(source.get("CNT_FAM_MEMBERS"), default_children + 1),
+        1, 15,
+    )
+    default_income = max(
+        finite_or(source.get("AMT_INCOME_TOTAL"), 250000.0), 10000
+    )
+    default_credit = max(
+        finite_or(source.get("AMT_CREDIT"), 500000.0), 10000
+    )
+    default_annuity = max(
+        finite_or(source.get("AMT_ANNUITY"), 25000.0), 1000
+    )
+    default_goods = max(
+        finite_or(source.get("AMT_GOODS_PRICE"), default_credit), 10000
+    )
+
+    with st.form("risk_assessment_form"):
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            age = st.number_input("Age (years)", 18.0, 75.0, float(default_age), 1.0)
+        with c2:
+            employment_years = st.number_input(
+                "Employment duration (years)", 0.0, 45.0,
+                float(default_employment), 0.5,
+            )
+        with c3:
+            children = st.number_input(
+                "Number of children", 0, 10, default_children, 1
+            )
+        with c4:
+            family_members = st.number_input(
+                "Family members", 1.0, 15.0,
+                float(default_family), 1.0,
+            )
+
+        c1, c2 = st.columns(2)
+        with c1:
+            income = st.number_input(
+                "Annual income (₹)", min_value=10000.0,
+                value=float(default_income), step=10000.0, format="%.0f",
+            )
+            credit = st.number_input(
+                "Loan / credit amount (₹)", min_value=10000.0,
+                value=float(default_credit), step=10000.0, format="%.0f",
+            )
+        with c2:
+            annuity = st.number_input(
+                "Annual repayment / annuity (₹)", min_value=1000.0,
+                value=float(default_annuity), step=1000.0, format="%.0f",
+            )
+            goods_price = st.number_input(
+                "Goods / purchase price (₹)", min_value=10000.0,
+                value=float(default_goods), step=10000.0, format="%.0f",
+            )
+
+        submitted = st.form_submit_button(
+            "ASSESS REPAYMENT RISK",
+            type="primary",
+            use_container_width=True,
+        )
+
+    if "assessment" not in st.session_state:
+        st.session_state["assessment"] = None
+
+    if submitted:
+        row = build_demo_row(
+            base,
+            age=age,
+            employment_years=employment_years,
+            children=children,
+            family_members=family_members,
+            income=income,
+            credit=credit,
+            annuity=annuity,
+            goods_price=goods_price,
+        )
+        probability, prediction, contributions = predict_and_explain(
+            artifacts, row
+        )
+        st.session_state["assessment"] = {
+            "row": row,
+            "probability": probability,
+            "prediction": prediction,
+            "contributions": contributions,
+            "profile_id": selected_id,
+        }
+
+    assessment = st.session_state["assessment"]
+
+    if assessment is not None:
+        probability = assessment["probability"]
+        prediction = assessment["prediction"]
+        contributions = assessment["contributions"]
+
+        st.markdown("---")
+        st.header("2. Risk score and decision")
+
+        risk_class = "risk-high" if prediction else "risk-low"
+        label = "HIGH RISK" if prediction else "LOW RISK"
+
+        left, right = st.columns([1.15, 1])
+        with left:
+            st.markdown(
+                f"""
+                <div class="risk-card">
+                    <div class="small-note">
+                        Predicted probability of repayment difficulty
+                    </div>
+                    <div class="risk-prob {risk_class}">{probability:.1%}</div>
+                    <div class="{risk_class}"
+                         style="font-size:1.35rem;font-weight:800">
+                        {label}
+                    </div>
+                    <div class="small-note">
+                        Frozen decision threshold: {artifacts['threshold']:.0%}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with right:
+            st.metric("Accepted model", artifacts["model_name"])
+            st.metric(
+                "Distance from threshold",
+                f"{probability - artifacts['threshold']:+.1%}",
+            )
+            st.caption(
+                "The probability is a model score for repayment difficulty, "
+                "not a guaranteed outcome or a calibrated probability claim."
+            )
+
+        render_input_summary(
+            age, employment_years, children, family_members,
+            income, credit, annuity, goods_price,
+        )
+        render_local_explanation(contributions, assessment["row"])
+
+        st.markdown("### Overall model signals")
+        render_global_explainability()
+
     else:
-        render_methodology(artifacts)
+        st.markdown(
+            """
+            <div class="section">
+                <b>Ready for assessment.</b><br>
+                Enter the borrower details above and select
+                <b>ASSESS REPAYMENT RISK</b>. The score, local explanation,
+                derived indicators, and model evidence will appear below.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    st.sidebar.divider()
-    st.sidebar.caption(
-        "Demo-only interface · inference uses the frozen model and threshold · "
-        "no training or test-set tuning"
+    render_model_evidence(artifacts, metrics)
+
+    st.markdown("---")
+    st.caption(
+        "Single-page inference demo · frozen tuned XGBoost · threshold 0.58 · "
+        "no training, tuning, or test-set evaluation occurs in the UI."
     )
 
 
