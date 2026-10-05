@@ -1,7 +1,7 @@
 # Sprint 01 — Data and Working Models
 
 ## Goal
-By the end of Day 1, the project has a reproducible applicant-level dataset and working candidate models with recorded metrics.
+By the end of Day 1, the project has a reproducible applicant-level dataset and working baseline models with recorded metrics.
 
 ## Timebox
 Day 1.
@@ -21,4 +21,4 @@ Local copies of all seven Home Credit CSV files.
 - Applicant-level modeling table exists locally.
 - Raw and processed datasets remain untracked.
 - At least two models run; target is three.
-- Core evaluation metrics are recorded.
+- Core validation metrics are recorded.
