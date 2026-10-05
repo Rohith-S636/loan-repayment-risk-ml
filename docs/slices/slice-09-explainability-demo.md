@@ -50,9 +50,14 @@ The user enters understandable current application information:
 - Annual repayment/annuity
 - Goods/purchase price
 
-A real validation applicant is selected only as the historical credit profile. This preserves the complete multi-table representation without pretending that a new borrower manually supplies bureau, previous-application, installment, POS/CASH, and credit-card history.
+The demo does **not** select or expose a real validation applicant. Instead, it builds a controlled synthetic historical-reference profile from validation-data distributions:
+- **Neutral reference:** median validation feature vector.
+- **High-risk stress-test reference:** median feature vector of the top 1% validation rows by the frozen model's score.
+- **Low-risk reference:** median feature vector of the bottom 1% validation rows by the frozen model's score.
 
-External source indicators are **not** user-entered.
+These are aggregate demonstration profiles, not real applicants. The eight visible application fields are then overlaid on the selected reference profile. This makes the interactive scenario reproducible without borrowing one person's hidden bureau/payment history.
+
+External source indicators are **not** user-entered and are retained only inside the complete model representation.
 
 ### 2. Risk score and decision
 The page shows:
@@ -114,6 +119,9 @@ It displays:
 - [x] User-facing fields are understandable borrower/application details.
 - [x] External source indicators are not manually entered.
 - [x] Entered application values are mapped into the existing model feature space.
+- [x] Interactive demo no longer uses an arbitrary real validation applicant.
+- [x] Controlled neutral/high-risk/low-risk synthetic reference profiles are used.
+- [x] High-risk stress-test reference is clearly labeled as a demonstration control, not a new model.
 - [x] Complete saved preprocessing pipeline is used for inference.
 - [x] Frozen tuned XGBoost model is used.
 - [x] Frozen threshold 0.58 is used.
@@ -136,14 +144,15 @@ python -m streamlit run app\app.py
 Verify:
 1. The page starts without traceback.
 2. No external-source fields appear in the applicant form.
-3. Submit the default applicant details and record the risk score.
-4. Change income, loan amount, annuity, goods price, or age substantially and submit again.
-5. Confirm the model recalculates the score. Small changes can remain in the same XGBoost decision region; use a materially different scenario for the live demonstration.
-6. Confirm the local explanation updates with the new prediction.
-7. Confirm derived ratios match the entered values.
-8. Confirm training/validation/test methodology and all final metrics render.
-9. Confirm ROC/PR figures and confusion matrix render.
-10. Confirm no UI action trains, tunes, or evaluates the test set.
+3. Select **High-risk stress-test reference** and enter deliberately adverse values such as low income, short employment, high loan/income ratio, and high loan/goods-price ratio.
+4. Submit and record the risk score and HIGH/LOW decision.
+5. Switch to **Neutral historical reference** and repeat the same inputs to demonstrate how the complete applicant representation changes the model score.
+6. Confirm the model recalculates the score. Small changes can remain in the same XGBoost decision region; use materially different scenarios for the live demonstration.
+7. Confirm the local explanation updates with the new prediction.
+8. Confirm derived ratios match the entered values.
+9. Confirm training/validation/test methodology and all final metrics render.
+10. Confirm ROC/PR figures and confusion matrix render.
+11. Confirm no UI action trains, tunes, or evaluates the test set.
 
 ## Out of scope
 - Complex frontend frameworks.
