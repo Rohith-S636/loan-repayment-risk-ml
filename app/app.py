@@ -144,7 +144,6 @@ def load_artifacts():
     }
 
 
-@st.cache_data(show_spinner="Preparing controlled demo reference profiles...")
 def build_reference_profiles(model, bundle, validation: pd.DataFrame, feature_columns: list[str]):
     """Create synthetic reference histories from validation distributions.
 
@@ -520,13 +519,16 @@ def main() -> None:
         help=(
             "The trained model uses historical credit/payment features that a "
             "new applicant cannot reasonably type into this demo. These controls "
-            "use aggregate validation profiles rather than a real applicant."
+            "use aggregate validation profiles rather than a real applicant. "
+            "The high-risk option is a stress-test reference, not a new model."
         ),
     )
     st.caption(
         "Only the application details below are entered by the user. Historical "
         "bureau/payment variables are supplied by the selected synthetic reference "
-        "profile. Use the high-risk stress-test reference for the academic demo."
+        "profile. For the academic demo, use the high-risk stress-test reference "
+        "with the deliberately adverse applicant values to demonstrate a high-risk "
+        "decision."
     )
 
     reference_base = artifacts["reference_profiles"][reference_mode].copy()
@@ -622,6 +624,10 @@ def main() -> None:
 
         st.markdown("---")
         st.header("2. Risk score and decision")
+        st.caption(
+            f"Reference context: {reference_labels[assessment['reference_mode']]} "
+            "· synthetic aggregate, not a real applicant"
+        )
 
         risk_class = "risk-high" if prediction else "risk-low"
         label = "HIGH RISK" if prediction else "LOW RISK"
