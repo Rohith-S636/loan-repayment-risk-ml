@@ -161,6 +161,15 @@ def safe_ratio(numerator: float, denominator: float) -> float:
     return numerator / denominator
 
 
+def finite_or(value, fallback: float) -> float:
+    """Return a finite numeric value or a safe fallback for form defaults."""
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    return value if np.isfinite(value) else fallback
+
+
 def build_demo_row(
     base: pd.DataFrame,
     *,
@@ -285,18 +294,35 @@ def render_predictor(artifacts: dict) -> None:
         help="Presets only change the starting values. You can edit every field.",
     )
 
-    default_age = float(np.clip(source.get("APP_AGE_YEARS", 35.0), 18, 75))
+    default_age = float(
+        np.clip(finite_or(source.get("APP_AGE_YEARS"), 35.0), 18, 75)
+    )
     default_employment = float(
-        np.clip(source.get("APP_EMPLOYED_YEARS", 5.0), 0, 45)
+        np.clip(finite_or(source.get("APP_EMPLOYED_YEARS"), 5.0), 0, 45)
     )
-    default_children = int(np.clip(source.get("CNT_CHILDREN", 0), 0, 10))
+    default_children = int(
+        np.clip(finite_or(source.get("CNT_CHILDREN"), 0), 0, 10)
+    )
     default_family = float(
-        np.clip(source.get("CNT_FAM_MEMBERS", max(default_children + 1, 1)), 1, 15)
+        np.clip(
+            finite_or(source.get("CNT_FAM_MEMBERS"), default_children + 1),
+            1,
+            15,
+        )
     )
-    default_income = float(max(source.get("AMT_INCOME_TOTAL", 250000.0), 1))
-    default_credit = float(max(source.get("AMT_CREDIT", 500000.0), 1))
-    default_annuity = float(max(source.get("AMT_ANNUITY", 25000.0), 1))
-    default_goods = float(max(source.get("AMT_GOODS_PRICE", default_credit), 1))
+    default_income = max(
+        finite_or(source.get("AMT_INCOME_TOTAL"), 250000.0), 1
+    )
+    default_credit = max(
+        finite_or(source.get("AMT_CREDIT"), 500000.0), 1
+    )
+    default_annuity = max(
+        finite_or(source.get("AMT_ANNUITY"), 25000.0), 1
+    )
+    default_goods = max(
+        finite_or(source.get("AMT_GOODS_PRICE"), default_credit),
+        1,
+    )
 
     if preset == "Lower-burden example":
         default_income = max(default_income * 1.75, 500000.0)
@@ -371,21 +397,21 @@ def render_predictor(artifacts: dict) -> None:
             ext_source_1 = st.slider(
                 "External indicator 1",
                 0.0, 1.0,
-                float(np.clip(source.get("EXT_SOURCE_1", 0.5), 0, 1)),
+                float(np.clip(finite_or(source.get("EXT_SOURCE_1"), 0.5), 0, 1)),
                 0.01,
             )
         with c2:
             ext_source_2 = st.slider(
                 "External indicator 2",
                 0.0, 1.0,
-                float(np.clip(source.get("EXT_SOURCE_2", 0.5), 0, 1)),
+                float(np.clip(finite_or(source.get("EXT_SOURCE_2"), 0.5), 0, 1)),
                 0.01,
             )
         with c3:
             ext_source_3 = st.slider(
                 "External indicator 3",
                 0.0, 1.0,
-                float(np.clip(source.get("EXT_SOURCE_3", 0.5), 0, 1)),
+                float(np.clip(finite_or(source.get("EXT_SOURCE_3"), 0.5), 0, 1)),
                 0.01,
             )
 
