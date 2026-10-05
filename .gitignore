@@ -26,3 +26,6 @@ results/preprocessing/
 
 # Generated tuning experiment outputs
 results/tuning/
+
+# Generated explainability outputs
+results/explainability/
