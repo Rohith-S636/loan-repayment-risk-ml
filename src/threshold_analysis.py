@@ -10,6 +10,7 @@ The untouched test split is never used for threshold selection.
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -27,23 +28,23 @@ THRESHOLD_STEP = 0.01
 ROOT = Path(__file__).resolve().parents[1]
 PROCESSED_PATH = ROOT / "data" / "processed" / "engineered_data.csv"
 BUNDLE_PATH = ROOT / "models" / "preprocessing_bundle.joblib"
-MODEL_PATH = ROOT / "models" / "xgboost.joblib"
+DEFAULT_MODEL_PATH = ROOT / "models" / "xgboost.joblib"
 REPORT_DIR = ROOT / "results" / "metrics"
 THRESHOLD_PATH = ROOT / "models" / "threshold.json"
 TARGET_COLUMN = "TARGET"
 ID_COLUMN = "SK_ID_CURR"
 
 
-def load_validation_data() -> tuple[object, np.ndarray]:
+def load_validation_data(model_path: Path) -> tuple[object, np.ndarray]:
     if not PROCESSED_PATH.exists():
         raise FileNotFoundError(f"Input not found: {PROCESSED_PATH}")
     if not BUNDLE_PATH.exists():
         raise FileNotFoundError(
             f"Preprocessing bundle not found: {BUNDLE_PATH}. Run Slice 04 first."
         )
-    if not MODEL_PATH.exists():
+    if not model_path.exists():
         raise FileNotFoundError(
-            f"XGBoost model not found: {MODEL_PATH}. Run Slice 05 first."
+            f"Model not found: {model_path}. Train or tune the selected model first."
         )
 
     df = pd.read_csv(PROCESSED_PATH)
@@ -112,6 +113,16 @@ def select_threshold(results: pd.DataFrame) -> pd.Series:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--model-path",
+        type=Path,
+        default=DEFAULT_MODEL_PATH,
+        help="Path to the accepted model artifact.",
+    )
+    args = parser.parse_args()
+    model_path = args.model_path if args.model_path.is_absolute() else ROOT / args.model_path
+
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     THRESHOLD_PATH.parent.mkdir(parents=True, exist_ok=True)
 
@@ -119,8 +130,8 @@ def main() -> None:
     print("LOAN REPAYMENT RISK ML - SLICE 07 THRESHOLD ANALYSIS")
     print("=" * 80)
 
-    X_validation, y_validation = load_validation_data()
-    model = joblib.load(MODEL_PATH)
+    X_validation, y_validation = load_validation_data(model_path)
+    model = joblib.load(model_path)
     probabilities = model.predict_proba(X_validation)[:, 1]
 
     thresholds = np.round(
@@ -155,9 +166,15 @@ def main() -> None:
         index=False,
     )
 
+    try:
+        model_relative_path = model_path.relative_to(ROOT).as_posix()
+    except ValueError as exc:
+        raise ValueError("Model path must be inside the project repository.") from exc
+    model_name = model_path.stem
+
     threshold_metadata = {
-        "model": "xgboost",
-        "model_path": "models/xgboost.joblib",
+        "model": model_name,
+        "model_path": model_relative_path,
         "selection_split": "validation",
         "test_split_used": False,
         "random_state": RANDOM_STATE,
@@ -191,7 +208,7 @@ def main() -> None:
 
     print(f"Validation rows         : {len(y_validation):,}")
     print(f"Positive rate           : {y_validation.mean():.6f}")
-    print("Model evaluated         : xgboost")
+    print(f"Model evaluated         : {model_name}")
     print("Test split used         : NO")
     print(f"Thresholds evaluated    : {len(results)}")
     print()
