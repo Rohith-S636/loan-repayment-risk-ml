@@ -5,6 +5,8 @@ Inference only:
 - Uses the frozen tuned XGBoost model.
 - Uses the frozen 0.58 decision threshold.
 - Never trains, tunes, or evaluates the test set from the UI.
+- Uses controlled synthetic historical-reference profiles rather than an
+  arbitrary real validation applicant for the interactive demo.
 """
 
 from __future__ import annotations
@@ -122,6 +124,11 @@ def load_artifacts():
     if len(transformed_names) != model.n_features_in_:
         raise ValueError("Model/preprocessor feature count mismatch.")
 
+    # Build aggregate reference profiles from validation data. No applicant ID
+    # is retained: each profile is the median feature vector of a validation
+    # slice, so the demo does not expose or borrow one person's hidden history.
+    reference_profiles = build_reference_profiles(model, bundle, validation, feature_columns)
+
     return {
         "model": model,
         "model_name": threshold["model"],
@@ -133,6 +140,44 @@ def load_artifacts():
         "feature_columns": feature_columns,
         "id_column": id_column,
         "transformed_names": transformed_names,
+        "reference_profiles": reference_profiles,
+    }
+
+
+@st.cache_data(show_spinner="Preparing controlled demo reference profiles...")
+def build_reference_profiles(model, bundle, validation: pd.DataFrame, feature_columns: list[str]):
+    """Create synthetic reference histories from validation distributions.
+
+    The neutral profile is the validation median. The high/low profiles are
+    medians of the 1% validation slices with the highest/lowest frozen-model
+    scores. They are aggregate profiles, not real applicants.
+    """
+    preprocessor = bundle["preprocessor"]
+    X = preprocessor.transform(validation[feature_columns])
+    scores = model.predict_proba(X)[:, 1]
+    scored = validation[feature_columns].copy()
+    scored["__demo_score"] = scores
+    scored = scored.sort_values("__demo_score")
+
+    n = max(100, int(len(scored) * 0.01))
+    low = scored.head(n).drop(columns="__demo_score")
+    high = scored.tail(n).drop(columns="__demo_score")
+
+    def aggregate(frame: pd.DataFrame) -> pd.DataFrame:
+        values = {}
+        for column in feature_columns:
+            series = frame[column]
+            if pd.api.types.is_numeric_dtype(series):
+                values[column] = float(series.median())
+            else:
+                mode = series.dropna().mode()
+                values[column] = mode.iloc[0] if not mode.empty else np.nan
+        return pd.DataFrame([values], columns=feature_columns)
+
+    return {
+        "neutral": aggregate(scored.drop(columns="__demo_score")),
+        "high_risk": aggregate(high),
+        "low_risk": aggregate(low),
     }
 
 
@@ -168,7 +213,7 @@ def build_demo_row(
     annuity: float,
     goods_price: float,
 ) -> pd.DataFrame:
-    """Replace current-application information while retaining history."""
+    """Overlay user-entered application details on a controlled reference profile."""
     row = base.copy()
 
     row["AMT_INCOME_TOTAL"] = income
@@ -288,8 +333,8 @@ def render_local_explanation(
 
     st.info(
         "These are model contributions, not causal claims. The explanation "
-        "reflects the complete applicant representation, including retained "
-        "historical credit/payment features."
+        "reflects the complete applicant representation, including the selected "
+        "synthetic historical-reference profile."
     )
 
 
@@ -454,60 +499,57 @@ def main() -> None:
     )
 
     st.info(
-        "This is an academic demonstration. A validation applicant is used "
-        "as the historical credit profile so the complete multi-table trained "
-        "feature representation can be demonstrated without asking the user "
-        "to invent unavailable bureau/payment history."
+        "This is an academic demonstration. The eight visible application "
+        "inputs are combined with a controlled synthetic historical-reference "
+        "profile derived from validation-data distributions. No real applicant "
+        "ID or individual's hidden bureau/payment history is used."
     )
 
     st.header("1. Enter applicant details")
 
-    validation = artifacts["validation"]
-    id_column = artifacts["id_column"]
-    profile_ids = validation[id_column].astype(int).tolist()
+    reference_labels = {
+        "neutral": "Neutral historical reference",
+        "high_risk": "High-risk stress-test reference",
+        "low_risk": "Low-risk reference",
+    }
+    reference_mode = st.selectbox(
+        "Historical feature reference",
+        list(reference_labels),
+        format_func=lambda key: reference_labels[key],
+        index=0,
+        help=(
+            "The trained model uses historical credit/payment features that a "
+            "new applicant cannot reasonably type into this demo. These controls "
+            "use aggregate validation profiles rather than a real applicant."
+        ),
+    )
+    st.caption(
+        "Only the application details below are entered by the user. Historical "
+        "bureau/payment variables are supplied by the selected synthetic reference "
+        "profile. Use the high-risk stress-test reference for the academic demo."
+    )
 
-    selected_id = st.selectbox(
-        "Historical credit profile",
-        profile_ids,
-        format_func=lambda x: f"Validation profile {x:,}",
-    )
-    base = validation[validation[id_column] == selected_id].copy()
-    source = base.iloc[0]
+    reference_base = artifacts["reference_profiles"][reference_mode].copy()
 
-    default_age = np.clip(
-        finite_or(source.get("APP_AGE_YEARS"), 35.0), 18, 75
-    )
-    default_employment = np.clip(
-        finite_or(source.get("APP_EMPLOYED_YEARS"), 5.0), 0, 45
-    )
-    default_children = int(
-        np.clip(finite_or(source.get("CNT_CHILDREN"), 0), 0, 10)
-    )
-    default_family = np.clip(
-        finite_or(source.get("CNT_FAM_MEMBERS"), default_children + 1),
-        1, 15,
-    )
-    default_income = max(
-        finite_or(source.get("AMT_INCOME_TOTAL"), 250000.0), 10000
-    )
-    default_credit = max(
-        finite_or(source.get("AMT_CREDIT"), 500000.0), 10000
-    )
-    default_annuity = max(
-        finite_or(source.get("AMT_ANNUITY"), 25000.0), 1000
-    )
-    default_goods = max(
-        finite_or(source.get("AMT_GOODS_PRICE"), default_credit), 10000
-    )
+    # Use representative, easy-to-explain defaults rather than values copied
+    # from an individual applicant.
+    default_age = 35.0
+    default_employment = 5.0
+    default_children = 1
+    default_family = 3.0
+    default_income = 300000.0
+    default_credit = 500000.0
+    default_annuity = 25000.0
+    default_goods = 450000.0
 
     with st.form("risk_assessment_form"):
         c1, c2, c3, c4 = st.columns(4)
         with c1:
-            age = st.number_input("Age (years)", 18.0, 75.0, float(default_age), 1.0)
+            age = st.number_input("Age (years)", 18.0, 75.0, default_age, 1.0)
         with c2:
             employment_years = st.number_input(
                 "Employment duration (years)", 0.0, 45.0,
-                float(default_employment), 0.5,
+                default_employment, 0.5,
             )
         with c3:
             children = st.number_input(
@@ -516,27 +558,27 @@ def main() -> None:
         with c4:
             family_members = st.number_input(
                 "Family members", 1.0, 15.0,
-                float(default_family), 1.0,
+                default_family, 1.0,
             )
 
         c1, c2 = st.columns(2)
         with c1:
             income = st.number_input(
                 "Annual income (₹)", min_value=10000.0,
-                value=float(default_income), step=10000.0, format="%.0f",
+                value=default_income, step=10000.0, format="%.0f",
             )
             credit = st.number_input(
                 "Loan / credit amount (₹)", min_value=10000.0,
-                value=float(default_credit), step=10000.0, format="%.0f",
+                value=default_credit, step=10000.0, format="%.0f",
             )
         with c2:
             annuity = st.number_input(
                 "Annual repayment / annuity (₹)", min_value=1000.0,
-                value=float(default_annuity), step=1000.0, format="%.0f",
+                value=default_annuity, step=1000.0, format="%.0f",
             )
             goods_price = st.number_input(
                 "Goods / purchase price (₹)", min_value=10000.0,
-                value=float(default_goods), step=10000.0, format="%.0f",
+                value=default_goods, step=10000.0, format="%.0f",
             )
 
         submitted = st.form_submit_button(
@@ -550,7 +592,7 @@ def main() -> None:
 
     if submitted:
         row = build_demo_row(
-            base,
+            reference_base,
             age=age,
             employment_years=employment_years,
             children=children,
@@ -568,7 +610,7 @@ def main() -> None:
             "probability": probability,
             "prediction": prediction,
             "contributions": contributions,
-            "profile_id": selected_id,
+            "reference_mode": reference_mode,
         }
 
     assessment = st.session_state["assessment"]
@@ -621,7 +663,6 @@ def main() -> None:
         )
         render_local_explanation(contributions, assessment["row"])
 
-        st.markdown("### Overall model signals")
         render_global_explainability()
 
     else:
