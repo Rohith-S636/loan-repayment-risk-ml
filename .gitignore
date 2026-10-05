@@ -23,3 +23,6 @@ results/figures/*.png
 results/aggregation/
 results/feature_engineering/
 results/preprocessing/
+
+# Generated tuning experiment outputs
+results/tuning/
