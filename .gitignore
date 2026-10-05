@@ -18,7 +18,6 @@ data/processed/*.csv
 models/*.joblib
 models/*.pkl
 results/metrics/*.csv
-results/metrics/*.json
 results/predictions/*.csv
 results/figures/*.png
 results/aggregation/
