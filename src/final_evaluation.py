@@ -8,6 +8,7 @@ performed from test results.
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -28,12 +29,9 @@ from sklearn.metrics import (
 )
 
 RANDOM_STATE = 42
-MODEL_NAME = "xgboost"
-
 ROOT = Path(__file__).resolve().parents[1]
 PROCESSED_PATH = ROOT / "data" / "processed" / "engineered_data.csv"
 BUNDLE_PATH = ROOT / "models" / "preprocessing_bundle.joblib"
-MODEL_PATH = ROOT / "models" / f"{MODEL_NAME}.joblib"
 THRESHOLD_PATH = ROOT / "models" / "threshold.json"
 
 METRICS_DIR = ROOT / "results" / "metrics"
@@ -43,8 +41,8 @@ PREDICTIONS_DIR = ROOT / "results" / "predictions"
 TARGET_COLUMN = "TARGET"
 
 
-def load_test_data() -> tuple[object, np.ndarray, pd.Series]:
-    for path in (PROCESSED_PATH, BUNDLE_PATH, MODEL_PATH, THRESHOLD_PATH):
+def load_test_data(model_path: Path) -> tuple[object, np.ndarray, pd.Series]:
+    for path in (PROCESSED_PATH, BUNDLE_PATH, model_path, THRESHOLD_PATH):
         if not path.exists():
             raise FileNotFoundError(f"Required artifact not found: {path}")
 
@@ -52,8 +50,9 @@ def load_test_data() -> tuple[object, np.ndarray, pd.Series]:
     bundle = joblib.load(BUNDLE_PATH)
     threshold_metadata = json.loads(THRESHOLD_PATH.read_text(encoding="utf-8"))
 
-    if threshold_metadata.get("model") != MODEL_NAME:
-        raise ValueError("Frozen threshold was not selected for XGBoost.")
+    expected_model_path = threshold_metadata.get("model_path")
+    if expected_model_path and expected_model_path != model_path.relative_to(ROOT).as_posix():
+        raise ValueError("Model path does not match the frozen threshold metadata.")
     if threshold_metadata.get("selection_split") != "validation":
         raise ValueError("Frozen threshold must have been selected on validation data.")
     if threshold_metadata.get("test_split_used") is not False:
@@ -143,6 +142,28 @@ def save_confusion_matrix(
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--model-path",
+        type=Path,
+        default=None,
+        help="Optional accepted model artifact. Defaults to the model recorded in threshold.json.",
+    )
+    args = parser.parse_args()
+
+    if not THRESHOLD_PATH.exists():
+        raise FileNotFoundError(f"Required artifact not found: {THRESHOLD_PATH}")
+    threshold_metadata = json.loads(THRESHOLD_PATH.read_text(encoding="utf-8"))
+    recorded_model_path = ROOT / threshold_metadata["model_path"]
+    model_path = args.model_path if args.model_path is not None else recorded_model_path
+    if not model_path.is_absolute():
+        model_path = ROOT / model_path
+    try:
+        model_relative_path = model_path.relative_to(ROOT).as_posix()
+    except ValueError as exc:
+        raise ValueError("Model path must be inside the project repository.") from exc
+    model_name = model_path.stem
+
     METRICS_DIR.mkdir(parents=True, exist_ok=True)
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
     PREDICTIONS_DIR.mkdir(parents=True, exist_ok=True)
@@ -151,8 +172,8 @@ def main() -> None:
     print("LOAN REPAYMENT RISK ML - SLICE 08 FINAL EVALUATION")
     print("=" * 80)
 
-    X_test, y_test, test_ids = load_test_data()
-    model = joblib.load(MODEL_PATH)
+    X_test, y_test, test_ids = load_test_data(model_path)
+    model = joblib.load(model_path)
     threshold_metadata = json.loads(THRESHOLD_PATH.read_text(encoding="utf-8"))
     threshold = float(threshold_metadata["selected_threshold"])
 
@@ -168,7 +189,7 @@ def main() -> None:
     tn, fp, fn, tp = confusion_matrix(y_test, predictions).ravel()
 
     metrics = {
-        "model": MODEL_NAME,
+        "model": model_name,
         "threshold": threshold,
         "evaluation_split": "test",
         "validation_tuning_completed_before_test": True,
@@ -215,7 +236,7 @@ def main() -> None:
 
     print(f"Test rows               : {len(y_test):,}")
     print(f"Positive rate           : {y_test.mean():.6f}")
-    print(f"Model evaluated         : {MODEL_NAME}")
+    print(f"Model evaluated         : {model_name}")
     print(f"Frozen threshold        : {threshold:.2f}")
     print("Validation tuning       : COMPLETED BEFORE TEST")
     print("Test data used for tuning: NO")

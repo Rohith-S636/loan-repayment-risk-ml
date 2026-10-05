@@ -17,10 +17,11 @@ flowchart LR
  C --> D[Feature engineering]
  D --> E[Train / validation / test]
  E --> F[Leakage-safe preprocessing]
- F --> G[Model comparison]
- G --> H[Threshold analysis]
- H --> I[Final evaluation]
- I --> J[Explainability + demo]
+ F --> G[Baseline model comparison]
+ G --> H[Controlled XGBoost tuning]
+ H --> I[Validation threshold analysis]
+ I --> J[Final test evaluation]
+ J --> K[Explainability + demo]
 ```
 
 ## Modules
@@ -28,8 +29,9 @@ flowchart LR
 - `aggregation` — reduce historical tables to `SK_ID_CURR` aggregates; chunk large files.
 - `feature_engineering` — financial ratios and compact repayment features.
 - `preprocessing` — imputation, encoding, and scaling where required.
-- `train` — train candidate models and persist the selected pipeline.
-- `evaluate` — metrics, curves, confusion matrix, threshold analysis.
+- `train` — train candidate baseline models and persist model artifacts.
+- `tune_xgboost` — run the controlled XGBoost validation experiment.
+- `evaluate` — metrics, curves, confusion matrix, threshold analysis, and final evaluation.
 - `app` — lightweight Streamlit demo.
 
 ## Relationships
@@ -59,17 +61,21 @@ Exact formulas must follow the actual CSV schema.
 ## Models
 1. Logistic Regression — baseline.
 2. Random Forest — nonlinear tree baseline.
-3. XGBoost — boosting candidate.
+3. XGBoost — primary boosting candidate.
 4. HistGradientBoostingClassifier — fallback if XGBoost is unavailable/impractical.
 
-Class weighting is the default imbalance strategy.
+## Controlled tuning
+Only XGBoost is tuned. Twenty deterministic candidate configurations are sampled with seed 42. The search covers tree complexity, learning rate, row/column subsampling, regularization, and `scale_pos_weight`.
+
+Selection is based on validation PR-AUC, with validation ROC-AUC and F1 as tie-breakers. The original XGBoost artifact is preserved until the tuned candidate is reviewed.
 
 ## Evaluation
-ROC-AUC, PR-AUC, precision, recall, F1, and confusion matrix. Threshold selection uses validation data only; final test evaluation happens after the threshold is frozen.
+ROC-AUC, PR-AUC, precision, recall, F1, and confusion matrix. Model selection and threshold selection use validation data only. Final test evaluation happens only after the selected model and threshold are frozen.
 
 ## Constraints
 - Raw data outside Git.
 - Avoid loading all large tables simultaneously.
 - No target leakage.
 - Fixed random seed.
-- Two-day deadline is a hard scope constraint.
+- No exhaustive tuning across all models.
+- No tuning after final test inspection.
