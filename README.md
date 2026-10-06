@@ -5,11 +5,11 @@
 A two-day ML mini-project for predicting loan repayment difficulty using the Home Credit multi-table dataset.
 
 ## Submission artifacts
-
 - [Two-page project report](./Project%20Report.pdf)
 - [Project presentation](./Project%20PPT.pdf)
 
-Raw Home Credit CSV files and large processed tables are intentionally kept out of GitHub.
+The report and presentation use the recorded experiment results in this repository. Raw Home
+Credit CSV files are intentionally not included.
 
 ## Objective
 Build a reproducible applicant-level pipeline combining current application data with historical credit and repayment behavior, handling class imbalance, comparing ML models, performing a controlled XGBoost tuning experiment, optimizing the decision threshold on validation data, and producing an interpretable demo.
@@ -129,33 +129,55 @@ pip install -r requirements.txt
 
 ## Clean-clone setup and complete reproduction
 
-After cloning, obtain the seven Home Credit CSV files and place them in `data/raw/`.
-Raw inputs and the large `data/processed/engineered_data.csv` output are ignored by Git.
-From the repository root, run the commands below in order:
+After cloning the repository, place the seven original Home Credit CSV files in
+`data/raw/`. The raw files are ignored by Git and must be obtained separately. From
+the repository root, run the pipeline in this order:
 
 ```powershell
+# 1. Validate the seven local source tables and their relationships
 python src\inspect_datasets.py
+
+# 2. Aggregate historical tables to one row per SK_ID_CURR
 python src\aggregate_history.py
+
+# 3. Build the compact financial and repayment feature table
 python src\feature_engineering.py
+
+# 4. Create the fixed stratified train/validation/test split and fit preprocessing on train only
 python src\preprocess.py
+
+# 5. Train and compare the Logistic Regression, Random Forest, and baseline XGBoost models
 python src\train.py
+
+# 6. Evaluate the selected imbalance-handling approach
 python src\evaluate_imbalance.py
+
+# 7. Run the deterministic 20-trial XGBoost validation-only tuning experiment
 python src\tune_xgboost.py
+
+# 8. Select the operating threshold on validation data only
 python src\threshold_analysis.py
+
+# 9. Evaluate the frozen model and threshold once on the untouched test set
 python src\final_evaluation.py
+
+# 10. Generate validation-only permutation feature importance
 python src\explainability.py
+
+# 11. Launch the inference-only Streamlit demonstration
 python -m streamlit run app\app.py
 ```
 
-The first ten commands regenerate the modeling, tuning, threshold, evaluation, and
-explainability artifacts. The last command launches the inference-only demo. Do not change
-the model, split, or threshold after inspecting the final test results.
+The first ten commands regenerate the required intermediate and final artifacts before the
+demo starts. The final evaluation must not be rerun with a changed model, split, or threshold
+after inspecting test results.
 
-The clean-clone demo requires these lightweight tracked artifacts:
+The clean-clone demo uses these lightweight final artifacts:
 
 - `models/xgboost_tuned.joblib`
 - `models/preprocessing_bundle.joblib`
 - `models/threshold.json`
+- `data/processed/engineered_data.csv`
 - `results/figures/final_test_confusion_matrix.png`
 - `results/figures/final_test_roc_curve.png`
 - `results/figures/final_test_pr_curve.png`
@@ -164,13 +186,15 @@ The clean-clone demo requires these lightweight tracked artifacts:
 - `results/metrics/final_test_confusion_matrix.csv`
 - `results/explainability/permutation_importance.csv`
 
-The large engineered table is regenerated locally by the pipeline and is not committed.
+Large raw inputs and intermediate generated files remain ignored. Running the commands above
+recreates them locally when the raw data is available.
 
 ## Team contributions
 
-- **Member A:** Slices 01–07: data validation, aggregation, feature engineering,
-  preprocessing, baseline training, imbalance evaluation, and threshold analysis.
-- **Member B:** Slice 06A and Slices 08–10: XGBoost tuning, final evaluation,
-  explainability, Streamlit demo, and submission documentation.
+- **Member A:** Slices 01–07: data validation, historical aggregation, feature engineering,
+  leakage-safe preprocessing, baseline model training, imbalance evaluation, and threshold
+  analysis.
+- **Member B:** Slices 06A and 08–10: controlled XGBoost tuning, final untouched-test
+  evaluation, explainability, Streamlit demo, and final submission documentation.
 
 See `docs/` for the project specification, architecture, research decisions, sprints, and implementation slices.
