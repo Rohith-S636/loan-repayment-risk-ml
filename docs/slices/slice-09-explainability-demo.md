@@ -37,6 +37,10 @@ Launch:
 python -m streamlit run app\app.py
 ```
 
+For a clean clone, run the complete pipeline documented in the
+[README](../../README.md#clean-clone-setup-and-complete-reproduction) first. The demo requires
+the tracked lightweight artifacts listed there; raw CSV files remain local and ignored.
+
 There are **no separate navigation pages**. The page is intentionally organized as a presentation flow:
 
 ### 1. Enter applicant details
@@ -132,6 +136,7 @@ It displays:
 - [x] Training/validation/test methodology is shown.
 - [x] Final test metrics and visualizations are shown.
 - [x] Threshold and model-selection results are shown.
+- [x] Streamlit launch command and required artifact contract are documented for clean-clone verification.
 - [ ] Streamlit app verified locally after the latest UI revision.
 
 ## Local verification

@@ -1,0 +1,12 @@
+{
+  "model": "xgboost_tuned",
+  "model_path": "models/xgboost_tuned.joblib",
+  "selection_split": "validation",
+  "test_split_used": false,
+  "random_state": 42,
+  "sample_size": 1500,
+  "repeats": 3,
+  "scoring": "average_precision",
+  "validation_pr_auc_on_sample": 0.22347917173275963,
+  "output": "results/explainability/permutation_importance.csv"
+}

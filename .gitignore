@@ -29,3 +29,15 @@ results/tuning/
 
 # Generated explainability outputs
 results/explainability/
+
+# Lightweight final demonstration artifacts required by the Streamlit app
+!models/xgboost_tuned.joblib
+!models/preprocessing_bundle.joblib
+!results/explainability/
+!results/metrics/final_test_metrics.csv
+!results/metrics/final_test_metrics.json
+!results/metrics/final_test_confusion_matrix.csv
+!results/figures/final_test_confusion_matrix.png
+!results/figures/final_test_roc_curve.png
+!results/figures/final_test_pr_curve.png
+!results/explainability/permutation_importance.csv

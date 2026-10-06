@@ -1,0 +1,2 @@
+model,threshold,evaluation_split,validation_tuning_completed_before_test,test_rows,positive_rate,roc_auc,pr_auc,precision,recall,f1,true_negative,false_positive,false_negative,true_positive,random_state
+xgboost_tuned,0.58,test,True,61503,0.08072776937710356,0.7781139026281,0.2737668632820113,0.2560523446019629,0.4729103726082578,0.33222497347010965,49716,6822,2617,2348,42

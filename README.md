@@ -4,6 +4,13 @@
 
 A two-day ML mini-project for predicting loan repayment difficulty using the Home Credit multi-table dataset.
 
+## Submission artifacts
+
+- [Two-page project report](./Project%20Report.pdf)
+- [Project presentation](./Project%20PPT.pdf)
+
+Raw Home Credit CSV files and large processed tables are intentionally kept out of GitHub.
+
 ## Objective
 Build a reproducible applicant-level pipeline combining current application data with historical credit and repayment behavior, handling class imbalance, comparing ML models, performing a controlled XGBoost tuning experiment, optimizing the decision threshold on validation data, and producing an interpretable demo.
 
@@ -69,7 +76,7 @@ Final untouched test evaluation:
 
 The final prediction pipeline uses:
 - `models/xgboost_tuned.joblib`
-- `models/preprocessor.joblib`
+- `models/preprocessing_bundle.joblib`
 - `models/threshold.json`
 
 ## Model-selection protocol
@@ -120,13 +127,50 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-## Controlled tuning
-Run after the baseline pipeline is available:
+## Clean-clone setup and complete reproduction
 
-```bash
-python src/tune_xgboost.py
+After cloning, obtain the seven Home Credit CSV files and place them in `data/raw/`.
+Raw inputs and the large `data/processed/engineered_data.csv` output are ignored by Git.
+From the repository root, run the commands below in order:
+
+```powershell
+python src\inspect_datasets.py
+python src\aggregate_history.py
+python src\feature_engineering.py
+python src\preprocess.py
+python src\train.py
+python src\evaluate_imbalance.py
+python src\tune_xgboost.py
+python src\threshold_analysis.py
+python src\final_evaluation.py
+python src\explainability.py
+python -m streamlit run app\app.py
 ```
 
-The experiment writes trial results under `results/tuning/` and saves the candidate model as `models/xgboost_tuned.joblib`.
+The first ten commands regenerate the modeling, tuning, threshold, evaluation, and
+explainability artifacts. The last command launches the inference-only demo. Do not change
+the model, split, or threshold after inspecting the final test results.
+
+The clean-clone demo requires these lightweight tracked artifacts:
+
+- `models/xgboost_tuned.joblib`
+- `models/preprocessing_bundle.joblib`
+- `models/threshold.json`
+- `results/figures/final_test_confusion_matrix.png`
+- `results/figures/final_test_roc_curve.png`
+- `results/figures/final_test_pr_curve.png`
+- `results/metrics/final_test_metrics.csv`
+- `results/metrics/final_test_metrics.json`
+- `results/metrics/final_test_confusion_matrix.csv`
+- `results/explainability/permutation_importance.csv`
+
+The large engineered table is regenerated locally by the pipeline and is not committed.
+
+## Team contributions
+
+- **Member A:** Slices 01–07: data validation, aggregation, feature engineering,
+  preprocessing, baseline training, imbalance evaluation, and threshold analysis.
+- **Member B:** Slice 06A and Slices 08–10: XGBoost tuning, final evaluation,
+  explainability, Streamlit demo, and submission documentation.
 
 See `docs/` for the project specification, architecture, research decisions, sprints, and implementation slices.
