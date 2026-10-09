@@ -1,12 +1,13 @@
-# Loan Repayment Risk Prediction Using Machine Learning
+# Loan Repayment Risk Prediction Using Machine Learning (An Imbalance-Aware and Interpretable Approach)
 
-**Working title:** Loan Repayment Risk Prediction Using Machine Learning: An Imbalance-Aware and Interpretable Approach
-
-A two-day ML mini-project for predicting loan repayment difficulty using the Home Credit multi-table dataset.
+A ML mini-project for predicting loan repayment difficulty using the Home Credit multi-table dataset.
 
 ## Submission artifacts
 - [Two-page project report](./Project%20Report.pdf)
 - [Project presentation](./Project%20PPT.pdf)
+## Presented By
+- **Rohith G S (PES2UG24AM138)**
+- **Nakshathira B (PES2UG24AM096)**
 
 The report and presentation use the recorded experiment results in this repository. Raw Home
 Credit CSV files are intentionally not included.
@@ -129,7 +130,7 @@ pip install -r requirements.txt
 
 ## Clean-clone setup and complete reproduction
 
-After cloning the repository, place the seven original Home Credit CSV files in
+After cloning the repository,download the raw data from the [Home Credit Default Risk Kaggle Competition](https://www.kaggle.com/competitions/home-credit-default-risk/data) and place the seven original Home Credit CSV files in
 `data/raw/`. The raw files are ignored by Git and must be obtained separately. From
 the repository root, run the pipeline in this order:
 
@@ -188,13 +189,5 @@ The clean-clone demo uses these lightweight final artifacts:
 
 Large raw inputs and intermediate generated files remain ignored. Running the commands above
 recreates them locally when the raw data is available.
-
-## Team contributions
-
-- **Member A:** Slices 01–07: data validation, historical aggregation, feature engineering,
-  leakage-safe preprocessing, baseline model training, imbalance evaluation, and threshold
-  analysis.
-- **Member B:** Slices 06A and 08–10: controlled XGBoost tuning, final untouched-test
-  evaluation, explainability, Streamlit demo, and final submission documentation.
 
 See `docs/` for the project specification, architecture, research decisions, sprints, and implementation slices.
