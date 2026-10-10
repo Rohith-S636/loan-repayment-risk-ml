@@ -1,4 +1,5 @@
-# Loan Repayment Risk Prediction Using Machine Learning (An Imbalance-Aware and Interpretable Approach)
+# Lorerisk
+## Loan Repayment Risk Prediction Using Machine Learning (An Imbalance-Aware and Interpretable Approach)
 
 A ML mini-project for predicting loan repayment difficulty using the Home Credit multi-table dataset.
 
